@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register | JuteVision AI</title>
+    <title>Register | CCTV VisionCount AI</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -15,6 +16,7 @@
             min-height: 100vh;
             padding: 2rem 0;
         }
+
         .auth-card {
             background-color: var(--bg-card);
             padding: 2.5rem;
@@ -24,10 +26,12 @@
             max-width: 400px;
             border: 1px solid var(--border-color);
         }
+
         .auth-header {
             text-align: center;
             margin-bottom: 2rem;
         }
+
         .auth-logo {
             width: 50px;
             height: 50px;
@@ -41,9 +45,11 @@
             font-weight: 700;
             font-size: 1.25rem;
         }
+
         .form-group {
             margin-bottom: 1.25rem;
         }
+
         .form-label {
             display: block;
             margin-bottom: 0.5rem;
@@ -51,6 +57,7 @@
             font-weight: 500;
             font-size: 0.9rem;
         }
+
         .form-input {
             width: 100%;
             padding: 0.75rem;
@@ -62,25 +69,30 @@
             outline: none;
             transition: border-color 0.2s;
         }
+
         .form-input:focus {
             border-color: var(--accent-green);
         }
+
         .btn-full {
             width: 100%;
             justify-content: center;
             margin-bottom: 1rem;
         }
+
         .auth-footer {
             text-align: center;
             margin-top: 1.5rem;
             font-size: 0.9rem;
             color: var(--text-secondary);
         }
+
         .auth-footer a {
             color: var(--accent-green);
             text-decoration: none;
             font-weight: 500;
         }
+
         .error-msg {
             color: var(--danger);
             font-size: 0.875rem;
@@ -88,6 +100,7 @@
             display: none;
             text-align: center;
         }
+
         .success-msg {
             color: var(--accent-green);
             font-size: 0.875rem;
@@ -100,12 +113,15 @@
         }
     </style>
 </head>
+
 <body>
     <div class="auth-card">
         <div class="auth-header">
-            <div><img src="assets/thirdeye-logo.png" alt="ThirdEye Data" class="header-logo" style="margin-bottom: 15px;"></div>
+            <div><img src="assets/thirdeye-logo.png" alt="ThirdEye Data" class="header-logo"
+                    style="margin-bottom: 15px;"></div>
             <h2>Create Account</h2>
-            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Join JuteVision AI today</p>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Join CCTV VisionCount AI
+                today</p>
         </div>
 
         <div id="error-message" class="error-msg"></div>
@@ -128,9 +144,10 @@
             </div>
             <div class="form-group">
                 <label class="form-label" for="confirm-password">Confirm Password</label>
-                <input type="password" id="confirm-password" class="form-input" placeholder="Confirm your password" required>
+                <input type="password" id="confirm-password" class="form-input" placeholder="Confirm your password"
+                    required>
             </div>
-            
+
             <button type="submit" class="btn-primary btn-full">Create Account</button>
         </form>
 
@@ -187,4 +204,5 @@
         });
     </script>
 </body>
+
 </html>

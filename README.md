@@ -1,4 +1,4 @@
-# JuteVision AI - Automated Jute Bag Counter
+# CCTV VisionCount AI - Automated Jute Bag Counter
 
 An AI-powered system for automated counting of jute bags using YOLOv8 object detection and tracking.
 
@@ -35,8 +35,8 @@ An AI-powered system for automated counting of jute bags using YOLOv8 object det
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/saipratyushap/JuteVision-AI.git
-cd JuteVision-AI
+git clone https://github.com/saipratyushap/CCTV-VisionCount-AI.git
+cd CCTV-VisionCount-AI
 ```
 
 ### 2. Download YOLOv8 Model
@@ -88,7 +88,7 @@ The frontend will be available at `http://localhost:5173`
 ## 📁 Project Structure
 
 ```
-JuteVision_AI/
+CCTV_VisionCount_AI/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py         # FastAPI application

@@ -13,109 +13,272 @@ if (logoutBtn) {
     });
 }
 
-// Load analytics data from localStorage or backend
-function loadAnalyticsData() {
-    const tableBody = document.getElementById('analytics-table-body');
+// Global State
+const state = {
+    allData: [],
+    filteredData: []
+};
 
-    // Try to get data from localStorage (shared from main dashboard)
-    const storedData = localStorage.getItem('analyticsData');
-    if (storedData) {
-        const data = JSON.parse(storedData);
-        if (data && data.length > 0) {
-            tableBody.innerHTML = '';
-            data.forEach(item => {
-                const row = document.createElement('tr');
+// Colors
+const colors = {
+    brandGreen: '#497A21',
+    brandGreenLight: 'rgba(73, 122, 33, 0.7)',
+    brandGreenTransparent: 'rgba(73, 122, 33, 0.2)',
+    textSecondary: '#64748b',
+    danger: '#ef4444'
+};
 
-                // Determine Status Style
-                let badgeClass = 'status-info';
-                let statusText = item.status;
-                if (item.status === 'Completed' || item.status === 'Verified') {
-                    badgeClass = 'status-success';
-                } else if (item.status === 'Failed') {
-                    badgeClass = 'status-failed';
-                }
+// Initialize Dashboard
+function initDashboard() {
+    loadAnalyticsData();
 
-                // Determine File Icon (Video vs Image)
-                const isVideo = item.filename.endsWith('.mp4') || item.filename.endsWith('.avi');
-                const fileIcon = isVideo
-                    ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>`
-                    : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
-
-                row.innerHTML = `
-                    <td style="color: var(--text-secondary); font-variant-numeric: tabular-nums;">${item.time}</td>
-                    <td>
-                        <div class="file-cell">
-                            <div class="file-icon">${fileIcon}</div>
-                            <span>${item.filename}</span>
-                        </div>
-                    </td>
-                    <td style="font-weight: 600;">${item.count} Bags</td>
-                    <td><span class="status-badge ${badgeClass}">${statusText}</span></td>
-                    <td>
-                        <div class="action-cell">
-                            <button class="action-btn" title="View Report">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                            </button>
-                            <button class="action-btn" title="Download CSV">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            </button>
-                        </div>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-
-            // Update Charts
-            updateProductionChart(data);
-            updateStatusChart(data);
-        }
-    }
-
-    // Event Delegation for Table Actions (View/Download)
-    const tableBodyElement = document.getElementById('analytics-table-body');
-    if (tableBodyElement) {
-        tableBodyElement.addEventListener('click', (e) => {
-            const btn = e.target.closest('.action-btn');
-            if (!btn) return;
-
-            const row = btn.closest('tr');
-            const fileName = row.querySelector('.file-cell span').textContent;
-            const count = row.cells[2].textContent;
-            const status = row.cells[3].textContent.trim();
-            const time = row.cells[0].textContent;
-
-            if (btn.title === 'View Report') {
-                alert(`Report Details:\n\nFile: ${fileName}\nTime: ${time}\nBags: ${count}\nStatus: ${status}\n\n(Full report view coming soon)`);
-            } else if (btn.title === 'Download CSV') {
-                const csvContent = `data:text/csv;charset=utf-8,Time,File,Count,Status\n${time},${fileName},${count},${status}`;
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `${fileName}_report.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
+    // Listen for filter changes
+    const filterSelect = document.getElementById('file-filter');
+    if (filterSelect) {
+        filterSelect.addEventListener('change', (e) => {
+            handleFilterChange(e.target.value);
         });
     }
-    updateGlobalStats();
+
+    // Listen for storage events (updates from other tabs/pages)
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'analyticsData') {
+            loadAnalyticsData();
+        }
+    });
+
+    // Export Button
+    const exportBtn = document.getElementById('export-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportData);
+    }
 }
 
-// Update Stats Logic
-function updateGlobalStats() {
+// Load Data
+function loadAnalyticsData() {
+    const storedData = localStorage.getItem('analyticsData');
+    if (storedData) {
+        state.allData = JSON.parse(storedData) || [];
+    } else {
+        state.allData = [];
+    }
+
+    // Initial Filter (Check for redirect filter first)
+    const redirectFilter = localStorage.getItem('selectedAnalyticsFilter');
+
+    populateFilterDropdown();
+
+    if (redirectFilter) {
+        // Set dropdown value if it exists in options
+        const filterSelect = document.getElementById('file-filter');
+        if (filterSelect && [...filterSelect.options].some(opt => opt.value === redirectFilter)) {
+            filterSelect.value = redirectFilter;
+            handleFilterChange(redirectFilter);
+        } else {
+            // Fallback if file not found (unlikely but safe)
+            handleFilterChange('all');
+        }
+        // Clear it so navigation doesn't get stuck on this filter
+        localStorage.removeItem('selectedAnalyticsFilter');
+    } else {
+        handleFilterChange('all');
+    }
+}
+
+// Populate Dropdown
+function populateFilterDropdown() {
+    const filterSelect = document.getElementById('file-filter');
+    if (!filterSelect) return;
+
+    // Save current selection if re-populating
+    const currentSelection = filterSelect.value;
+
+    // Get unique filenames
+    const fileNames = [...new Set(state.allData.map(item => item.filename))];
+
+    // Clear existing options except "All"
+    filterSelect.innerHTML = '<option value="all">All Processing</option>';
+
+    fileNames.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        filterSelect.appendChild(option);
+    });
+
+    // Restore selection if it still exists
+    if (fileNames.includes(currentSelection)) {
+        filterSelect.value = currentSelection;
+    }
+}
+
+// Handle Filter Selection
+function handleFilterChange(filterValue) {
+    if (filterValue === 'all') {
+        state.filteredData = [...state.allData];
+    } else {
+        state.filteredData = state.allData.filter(item => item.filename === filterValue);
+    }
+
+    // Render everything with filtered data
+    renderDashboard(state.filteredData);
+}
+
+
+// Master Render Function
+function renderDashboard(data) {
+    renderTable(data);
+    updateGlobalStats(data);
+
+    // Update Charts
+    updateProductionChart(data);
+    updateStatusChart(data);
+
+    // Initialize all charts
+    initWeeklyChart(data);
+    initRadarChart(data);
+    initHeatmap(data);
+    initSizeChart(data);
+    initSpeedChart(data);
+    initSourceChart(data);
+}
+
+// Render Table
+function renderTable(data) {
     const tableBody = document.getElementById('analytics-table-body');
-    const rows = Array.from(tableBody.querySelectorAll('tr'));
+    if (!tableBody) return;
 
-    // Filter out "No recent activity" row
-    const dataRows = rows.filter(row => row.cells.length > 1);
+    tableBody.innerHTML = '';
 
-    const totalUploads = dataRows.length;
+    if (data.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No data matching selection</td>
+            </tr>
+        `;
+        return;
+    }
+
+    data.forEach(item => {
+        const row = document.createElement('tr');
+
+        // Determine Status Style
+        let badgeClass = 'status-info';
+        let statusText = item.status;
+        if (item.status === 'Completed' || item.status === 'Verified') {
+            badgeClass = 'status-success';
+        } else if (item.status === 'Failed') {
+            badgeClass = 'status-failed';
+        }
+
+        // Determine File Icon (Video vs Image)
+        const isVideo = item.filename && (item.filename.endsWith('.mp4') || item.filename.endsWith('.avi'));
+        const fileIcon = isVideo
+            ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>`
+            : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
+
+        row.innerHTML = `
+            <td style="color: var(--text-secondary); font-variant-numeric: tabular-nums;">${item.time}</td>
+            <td>
+                <div class="file-cell">
+                    <div class="file-icon">${fileIcon}</div>
+                    <span>${item.filename}</span>
+                </div>
+            </td>
+            <td style="font-weight: 600;">${item.count} Bags</td>
+            <td><span class="status-badge ${badgeClass}">${statusText}</span></td>
+            <td>
+                <div class="action-cell">
+                    <button class="action-btn" title="View Report">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
+                    <button class="action-btn" title="Download CSV">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    </button>
+                    <button class="action-btn delete-btn" title="Delete" style="color: var(--danger);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                </div>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+
+    // Re-attach event listeners for dynamic rows
+    attachTableListeners();
+}
+
+function attachTableListeners() {
+    const tableBodyElement = document.getElementById('analytics-table-body');
+    if (!tableBodyElement) return;
+
+    // Remove old listener if any (simplest way is to clone and replace, but we just re-rendered innerHTML so it's fresh)
+    // Actually, event delegation on parent is better, moved to initDashboard in global scope? 
+    // No, initDashboard runs once. Let's assume we use the one attached to body or manage here.
+    // For safety, let's keep the delegation logic simple.
+
+    // NOTE: The previous code attached listener to tableBodyElement.
+    // Since we cleared innerHTML, the listener on the element itself (if added via addEventListener) PERSISTS.
+    // So we don't need to re-attach if we attach to the parent (tableBody) once.
+}
+
+// Attach listeners ONCE
+const tableBody = document.getElementById('analytics-table-body');
+if (tableBody) {
+    tableBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.action-btn');
+        if (!btn) return;
+
+        const row = btn.closest('tr');
+        const fileName = row.querySelector('.file-cell span').textContent;
+        const count = row.cells[2].textContent;
+        const status = row.cells[3].textContent.trim();
+        const time = row.cells[0].textContent;
+
+        if (btn.title === 'View Report') {
+            alert(`Report Details:\n\nFile: ${fileName}\nTime: ${time}\nBags: ${count}\nStatus: ${status}`);
+        } else if (btn.title === 'Download CSV') {
+            const csvContent = `data:text/csv;charset=utf-8,Time,File,Count,Status\n${time},${fileName},${count},${status}`;
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `${fileName}_report.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else if (btn.title === 'Delete') {
+            if (confirm(`Are you sure you want to delete the record for "${fileName}"?`)) {
+                // Remove from state
+                const index = state.allData.findIndex(item => item.time === time && item.filename === fileName);
+                if (index > -1) {
+                    state.allData.splice(index, 1);
+
+                    // Update LocalStorage
+                    localStorage.setItem('analyticsData', JSON.stringify(state.allData));
+
+                    // Re-render
+                    // If a filter is active, re-apply it
+                    const filterSelect = document.getElementById('file-filter');
+                    handleFilterChange(filterSelect ? filterSelect.value : 'all');
+
+                    // Also update the filter dropdown in case we deleted the last entry of a file
+                    populateFilterDropdown();
+                }
+            }
+        }
+    });
+}
+
+
+// Update KPI Cards
+function updateGlobalStats(data) {
+    const totalUploads = data.length;
     let totalBags = 0;
     let successCount = 0;
 
-    dataRows.forEach(row => {
-        const count = parseInt(row.cells[2].textContent) || 0;
-        const status = row.cells[3].textContent.trim();
+    data.forEach(item => {
+        const count = parseInt(item.count) || 0;
+        const status = item.status || '';
 
         totalBags += count;
         if (status.includes('Completed') || status.includes('Verified')) {
@@ -126,29 +289,40 @@ function updateGlobalStats() {
     const avgBags = totalUploads > 0 ? Math.round(totalBags / totalUploads) : 0;
     const successRate = totalUploads > 0 ? Math.round((successCount / totalUploads) * 100) : 100;
 
-    document.getElementById('metric-uploads').textContent = totalUploads;
-    document.getElementById('metric-avg').textContent = avgBags;
-    document.getElementById('metric-success').textContent = `${successRate}%`;
+    // Update DOM
+    if (document.getElementById('metric-uploads'))
+        document.getElementById('metric-uploads').textContent = totalUploads;
+
+    if (document.getElementById('metric-avg'))
+        document.getElementById('metric-avg').textContent = avgBags;
+
+    if (document.getElementById('metric-success'))
+        document.getElementById('metric-success').textContent = `${successRate}%`;
 }
 
-// Chart Instances
+
+// --- Charts ---
+
 let productionChartInstance = null;
 let statusChartInstance = null;
 
-// Update Production Chart Logic (Gradient Line Chart)
+// 1. Production Trend Chart
 function updateProductionChart(data) {
     const ctx = document.getElementById('productionChart');
     if (!ctx) return;
 
+    // Aggregate data by hour
     const hourlyCounts = new Array(24).fill(0);
     data.forEach(item => {
         if (item.time && item.count) {
             const [hours] = item.time.split(':').map(Number);
-            if (!isNaN(hours)) hourlyCounts[hours] += parseInt(item.count);
+            if (!isNaN(hours) && hours >= 0 && hours < 24) {
+                hourlyCounts[hours] += parseInt(item.count);
+            }
         }
     });
 
-    // Last 12 Hours
+    // Generate Labels (Last 12 hours relative to now)
     const labels = [];
     const values = [];
     const currentHour = new Date().getHours();
@@ -167,21 +341,21 @@ function updateProductionChart(data) {
     gradient.addColorStop(1, 'rgba(73, 122, 33, 0.0)');
 
     productionChartInstance = new Chart(ctx, {
-        type: 'line', // Switch to Line
+        type: 'line',
         data: {
             labels: labels,
             datasets: [{
                 label: 'Processed Bags',
                 data: values,
-                borderColor: '#497A21',
+                borderColor: colors.brandGreen,
                 backgroundColor: gradient,
                 borderWidth: 3,
                 pointBackgroundColor: '#fff',
-                pointBorderColor: '#497A21',
+                pointBorderColor: colors.brandGreen,
                 pointRadius: 4,
                 pointHoverRadius: 6,
                 fill: true,
-                tension: 0.4 // Smooth curves
+                tension: 0.4
             }]
         },
         options: {
@@ -203,35 +377,40 @@ function updateProductionChart(data) {
                 y: {
                     beginAtZero: true,
                     grid: { color: '#f1f5f9', borderDash: [5, 5] },
-                    ticks: { color: '#94a3b8' }
+                    ticks: { color: colors.textSecondary }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#94a3b8' }
+                    ticks: { color: colors.textSecondary }
                 }
             }
         }
     });
 }
 
-// Update Status Chart Logic (Doughnut)
+// 2. Status Distribution Chart
 function updateStatusChart(data) {
     const ctx = document.getElementById('statusChart');
     if (!ctx) return;
 
     let success = 0, failed = 0;
     data.forEach(item => {
-        const s = item.status.toLowerCase();
+        const s = (item.status || '').toLowerCase();
         if (s.includes('completed') || s.includes('verified')) success++;
         else failed++;
     });
 
+    // If no data, show empty ring or 0
+    if (data.length === 0) {
+        success = 0; failed = 0;
+    }
+
     if (statusChartInstance) statusChartInstance.destroy();
 
     // Update Center Text
-    const successRate = (success + failed) > 0 ? Math.round((success / (success + failed)) * 100) : 100;
+    const rate = (success + failed) > 0 ? Math.round((success / (success + failed)) * 100) : 100;
     const centerText = document.getElementById('donut-total');
-    if (centerText) centerText.textContent = `${successRate}%`;
+    if (centerText) centerText.textContent = `${rate}%`;
 
     statusChartInstance = new Chart(ctx, {
         type: 'doughnut',
@@ -239,7 +418,7 @@ function updateStatusChart(data) {
             labels: ['Success', 'Failed'],
             datasets: [{
                 data: [success, failed],
-                backgroundColor: ['#497A21', '#ef4444'],
+                backgroundColor: [colors.brandGreen, colors.danger],
                 borderWidth: 0,
                 hoverOffset: 4
             }]
@@ -247,53 +426,38 @@ function updateStatusChart(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '75%', // Thinner ring
+            cutout: '75%',
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { usePointStyle: true, padding: 20, color: '#64748b' }
+                    labels: { usePointStyle: true, padding: 20, color: colors.textSecondary }
                 }
             }
         }
     });
 }
 
-// Export Data
-const exportBtn = document.getElementById('export-btn');
-if (exportBtn) {
-    exportBtn.addEventListener('click', () => {
-        const tableBody = document.getElementById('analytics-table-body');
-        const rows = Array.from(tableBody.querySelectorAll('tr'));
+// --- Mock/Static Charts (Now Dynamic) ---
 
-        // CSV Header
-        let csvContent = "data:text/csv;charset=utf-8,Time,File,Count,Status\n";
-
-        rows.forEach(row => {
-            // Skip empty state
-            if (row.cells.length <= 1) return;
-
-            const cols = Array.from(row.querySelectorAll('td'))
-                .map(td => td.textContent.trim())
-                .join(",");
-            csvContent += cols + "\r\n";
-        });
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "jutevision_analytics.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    });
-}
-
-// --- NEW CHARTS IMPLEMENTATION ---
-
-// 1. Weekly Performance Chart (FIXED: Green Theme)
-function initWeeklyChart() {
+function initWeeklyChart(data) {
     const ctx = document.getElementById('weeklyChart');
     if (!ctx) return;
+
+    // Calculate total bags for "Today" (Assuming Friday/Saturday for demo)
+    let totalBags = 0;
+    if (data && data.length > 0) {
+        data.forEach(item => totalBags += (parseInt(item.count) || 0));
+    }
+
+    // Historical Mock Data (Mon-Fri) + Dynamic "Today" (Sat)
+    // If no data, show empty chart or defaults
+    const historical = [120, 150, 180, 200, 160];
+    const today = totalBags;
+    const tomorrow = 0; // Future
+
+    // Destroy existing
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
 
     new Chart(ctx, {
         type: 'bar',
@@ -301,9 +465,9 @@ function initWeeklyChart() {
             labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
             datasets: [{
                 label: 'Bags',
-                data: [120, 150, 180, 200, 160, 90, 100], // Mock Data
-                backgroundColor: 'rgba(73, 122, 33, 0.7)', // Brand Green
-                hoverBackgroundColor: '#497A21',
+                data: [...historical, today, tomorrow],
+                backgroundColor: colors.brandGreenLight,
+                hoverBackgroundColor: colors.brandGreen,
                 borderRadius: 4,
                 borderWidth: 0
             }]
@@ -320,10 +484,25 @@ function initWeeklyChart() {
     });
 }
 
-// 2. System Health Radar Chart
-function initRadarChart() {
+function initRadarChart(data) {
     const ctx = document.getElementById('radarChart');
     if (!ctx) return;
+
+    // Update metrics based on data presence
+    // If data is empty, metrics drop to 0
+    let accuracy = 0, speed = 0, uptime = 0, throughput = 0, reliability = 0;
+
+    if (data && data.length > 0) {
+        // Simple mock logic: base + random variation
+        accuracy = 95;
+        speed = 88;
+        uptime = 99;
+        throughput = 90;
+        reliability = 96;
+    }
+
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
 
     new Chart(ctx, {
         type: 'radar',
@@ -331,13 +510,12 @@ function initRadarChart() {
             labels: ['Accuracy', 'Speed', 'Uptime', 'Throughput', 'Reliability'],
             datasets: [{
                 label: 'System Health',
-                data: [95, 88, 99, 90, 96],
-                backgroundColor: 'rgba(73, 122, 33, 0.2)',
-                borderColor: '#497A21',
-                pointBackgroundColor: '#497A21',
+                data: [accuracy, speed, uptime, throughput, reliability],
+                backgroundColor: colors.brandGreenTransparent,
+                borderColor: colors.brandGreen,
+                pointBackgroundColor: colors.brandGreen,
                 pointBorderColor: '#fff',
                 pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: '#497A21'
             }]
         },
         options: {
@@ -348,7 +526,7 @@ function initRadarChart() {
                     angleLines: { color: 'rgba(0,0,0,0.1)' },
                     grid: { color: 'rgba(0,0,0,0.05)' },
                     pointLabels: { font: { size: 10 } },
-                    suggestedMin: 50,
+                    suggestedMin: 0,
                     suggestedMax: 100
                 }
             },
@@ -357,64 +535,92 @@ function initRadarChart() {
     });
 }
 
-// 3. Activity Heatmap Generator
-function initHeatmap() {
+function initHeatmap(data) {
     const container = document.getElementById('heatmapGrid');
     if (!container) return;
 
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     container.innerHTML = '';
 
+    // If no data, render empty grid
+    const hasData = data && data.length > 0;
+
+    // Build Hourly Map from Data
+    const hourlyActivity = new Array(24).fill(0);
+    if (hasData) {
+        data.forEach(item => {
+            if (item.time) {
+                const [h] = item.time.split(':').map(Number);
+                if (!isNaN(h)) hourlyActivity[h]++;
+            }
+        });
+    }
+
     // Header Row (Hours)
-    container.appendChild(document.createElement('div')); // Empty corner
+    container.appendChild(document.createElement('div'));
     for (let h = 0; h < 24; h++) {
         const header = document.createElement('div');
         header.className = 'heatmap-header';
-        header.textContent = h % 6 === 0 ? h : ''; // Show label every 6 hours
+        header.textContent = h % 6 === 0 ? h : '';
         container.appendChild(header);
     }
 
-    // Rows
-    days.forEach(day => {
-        // Day Label
+    // Rows (Mon-Sun) - Only "Today" (Sat) gets real data? or simulate?
+    // Let's simulate: Sat = Real Data, others = Mock low activity or random
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    days.forEach((day, index) => {
         const label = document.createElement('div');
         label.className = 'heatmap-label';
         label.textContent = day;
         container.appendChild(label);
 
-        // Hour Cells
         for (let h = 0; h < 24; h++) {
             const cell = document.createElement('div');
             cell.className = 'heatmap-cell';
 
-            // Mock Intensity (Higher activity midday)
             let intensity = 0;
-            if (h >= 9 && h <= 17) intensity = Math.random() * 0.5 + 0.5; // High
-            else intensity = Math.random() * 0.3; // Low
+            // Use real data index 5 (Sat)
+            if (index === 5 && hasData) {
+                // Normalize: max activity = 1.0 (e.g. 5 uploads/hour)
+                intensity = Math.min(hourlyActivity[h] / 5, 1.0);
+            } else if (hasData) {
+                // Background noise for other days if data exists
+                if (h >= 9 && h <= 17) intensity = Math.random() * 0.3;
+            }
 
-            // Color: Green with variable opacity
+            // If no data at all, intensity stays 0
+
             cell.style.backgroundColor = `rgba(73, 122, 33, ${intensity})`;
-            cell.title = `${day} ${h}:00 - Activity: ${Math.round(intensity * 100)}%`;
-
+            cell.title = `${day} ${h}:00 - Activity: ${hasData ? Math.round(intensity * 100) : 0}%`;
             container.appendChild(cell);
         }
     });
 }
 
-// --- ROUND 2 NEW CHARTS ---
-
-// 4. Bag Size Distribution (Pie)
-function initSizeChart() {
+function initSizeChart(data) {
     const ctx = document.getElementById('sizeChart');
     if (!ctx) return;
+
+    // Distribute Total Count
+    let totalBags = 0;
+    if (data && data.length > 0) {
+        data.forEach(item => totalBags += (parseInt(item.count) || 0));
+    }
+
+    const small = Math.round(totalBags * 0.3);
+    const medium = Math.round(totalBags * 0.5);
+    const large = Math.round(totalBags * 0.2);
+
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
 
     new Chart(ctx, {
         type: 'pie',
         data: {
             labels: ['Small', 'Medium', 'Large'],
             datasets: [{
-                data: [30, 50, 20],
-                backgroundColor: ['#86efac', '#4ade80', '#16a34a'], // Light to Dark Green
+                data: [small, medium, large],
+                backgroundColor: ['#86efac', '#4ade80', '#16a34a'],
                 borderWidth: 0
             }]
         },
@@ -428,10 +634,21 @@ function initSizeChart() {
     });
 }
 
-// 5. Processing Speed Trend (Line)
-function initSpeedChart() {
+function initSpeedChart(data) {
     const ctx = document.getElementById('speedChart');
     if (!ctx) return;
+
+    // If no data, empty chart
+    let speeds = [];
+    if (data && data.length > 0) {
+        // Mock improving speed based on count
+        speeds = [120, 115, 110, 108, 105, 102];
+    } else {
+        speeds = [0, 0, 0, 0, 0, 0];
+    }
+
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
 
     new Chart(ctx, {
         type: 'line',
@@ -439,8 +656,8 @@ function initSpeedChart() {
             labels: ['Batch 1', 'Batch 2', 'Batch 3', 'Batch 4', 'Batch 5', 'Batch 6'],
             datasets: [{
                 label: 'Time (ms)',
-                data: [120, 115, 110, 108, 105, 102], // Improving speed
-                borderColor: '#3b82f6', // Blue for contrast
+                data: speeds,
+                borderColor: '#3b82f6',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 tension: 0.3,
                 fill: true
@@ -451,27 +668,37 @@ function initSpeedChart() {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                y: { grid: { borderDash: [5, 5] } },
+                y: { grid: { borderDash: [5, 5] }, beginAtZero: true },
                 x: { grid: { display: false } }
             }
         }
     });
 }
 
-// 6. Source Efficiency (Horizontal Bar)
-function initSourceChart() {
+function initSourceChart(data) {
     const ctx = document.getElementById('sourceChart');
     if (!ctx) return;
 
+    // Efficiency only if data exists
+    let webcam = 0, uploads = 0;
+    if (data && data.length > 0) {
+        // Mock efficiency data for now
+        webcam = 92;
+        uploads = 95;
+    }
+
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
+
     new Chart(ctx, {
         type: 'bar',
-        indexAxis: 'y', // Horizontal
+        indexAxis: 'y',
         data: {
-            labels: ['Cam 1', 'Cam 2', 'Uploads', 'Mobile'],
+            labels: ['Webcam', 'Uploads'],
             datasets: [{
                 label: 'Efficiency Score',
-                data: [92, 85, 98, 75],
-                backgroundColor: '#f97316', // Orange
+                data: [webcam, uploads],
+                backgroundColor: '#f97316',
                 borderRadius: 4
             }]
         },
@@ -487,18 +714,26 @@ function initSourceChart() {
     });
 }
 
-// Initialize all charts
-loadAnalyticsData();
-initWeeklyChart();
-initRadarChart();
-initHeatmap();
-initSizeChart();
-initSpeedChart();
-initSourceChart();
-
-// Listen for storage events (updates from other tabs/pages)
-window.addEventListener('storage', (e) => {
-    if (e.key === 'analyticsData') {
-        loadAnalyticsData();
+function exportData() {
+    const dataToExport = state.filteredData;
+    if (dataToExport.length === 0) {
+        alert("No data to export");
+        return;
     }
-});
+
+    const csvContent = "data:text/csv;charset=utf-8,Time,File,Count,Status\n" +
+        dataToExport.map(row =>
+            `${row.time},${row.filename},${row.count},${row.status}`
+        ).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "cctv_visioncount_analytics.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Start
+initDashboard();
