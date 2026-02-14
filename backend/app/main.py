@@ -63,7 +63,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, title="CCTV VisionCount AI")
 
 app.add_middleware(
     CORSMiddleware,

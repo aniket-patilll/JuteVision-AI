@@ -142,6 +142,9 @@ async function pollTaskStatus(taskId, element) {
                 countSpan.style.marginLeft = '10px';
                 element.querySelector('.file-info').appendChild(countSpan);
 
+                // Extract filename from the element text or use a generic name if needed
+                const fileName = element.querySelector('.file-name').textContent || "Video Upload";
+
                 // Add Result Display (Image or Video)
                 const resultContainer = document.createElement('div');
                 resultContainer.className = 'result-media-container';
@@ -152,20 +155,55 @@ async function pollTaskStatus(taskId, element) {
                 if (task.is_image) {
                     resultContainer.innerHTML = `
                         <img src="${mediaUrl}" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
-                        <a href="${mediaUrl}" download class="download-link" style="display: block; margin-top: 5px; color: var(--accent-green); font-size: 0.8rem;">Download Processed Image</a>
+                        <div class="result-actions" style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button class="btn-primary download-media-btn" data-url="${mediaUrl}" data-filename="detected_${fileName}.jpg" style="flex: 1; text-align: center; text-decoration: none; font-size: 0.9rem;">Download Image</button>
+                            <button class="btn-secondary view-analytics-btn" data-filename="${fileName}" style="flex: 1; font-size: 0.9rem;">View Analytics</button>
+                        </div>
                     `;
                 } else {
                     resultContainer.innerHTML = `
                         <video controls src="${mediaUrl}" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);"></video>
-                        <a href="${mediaUrl}" download class="download-link" style="display: block; margin-top: 5px; color: var(--accent-green); font-size: 0.8rem;">Download Processed Video</a>
+                        <div class="result-actions" style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button class="btn-primary download-media-btn" data-url="${mediaUrl}" data-filename="detected_${fileName}.mp4" style="flex: 1; text-align: center; text-decoration: none; font-size: 0.9rem;">Download Video</button>
+                            <button class="btn-secondary view-analytics-btn" data-filename="${fileName}" style="flex: 1; font-size: 0.9rem;">View Analytics</button>
+                        </div>
                     `;
                 }
 
                 element.appendChild(resultContainer);
 
+                // Add Event Listeners
+                const downloadBtn = resultContainer.querySelector('.download-media-btn');
+                if (downloadBtn) {
+                    downloadBtn.addEventListener('click', async () => {
+                        const url = downloadBtn.getAttribute('data-url');
+                        const filename = downloadBtn.getAttribute('data-filename');
+                        try {
+                            const response = await fetch(url);
+                            const blob = await response.blob();
+                            const blobUrl = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = blobUrl;
+                            link.download = filename;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(blobUrl);
+                        } catch (error) {
+                            console.error('Download failed:', error);
+                        }
+                    });
+                }
+
+                const viewBtn = resultContainer.querySelector('.view-analytics-btn');
+                if (viewBtn) {
+                    viewBtn.addEventListener('click', () => {
+                        localStorage.setItem('selectedAnalyticsFilter', fileName);
+                        window.location.href = 'analytics.html';
+                    });
+                }
+
                 // Add to Analytics Table
-                // Extract filename from the element text or use a generic name if needed
-                const fileName = element.querySelector('.file-name').textContent || "Video Upload";
                 addAnalyticsRow(fileName, task.count, "Completed");
 
             } else if (task.status === 'failed') {
@@ -389,7 +427,7 @@ if (exportBtn) {
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "jutevision_analytics.csv");
+        link.setAttribute("download", "cctv_visioncount_analytics.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
