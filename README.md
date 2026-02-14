@@ -114,16 +114,18 @@ CCTV_VisionCount_AI/
 ## 🔧 Configuration
 
 ### Processing Modes
+The system supports two distinct analysis modes, selectable via the UI:
 
-The tracker supports two modes:
+1. **Static Mode** (Optimized for Images/Piles)
+   - Uses **Tiled Detection (SAHI-lite)** to scan high-resolution warehouse photos.
+   - Best for counting stationary bags stacked in large piles.
+2. **Scanning Mode** (Optimized for Video/Conveyors)
+   - Uses a **Center Scanning Zone** logic.
+   - Bags are counted only when they enter the designated zone in the center of the frame.
+   - Prevents double-counting in dynamic warehouse scenes.
 
-1. **Static Mode** (Default) - For warehouse scenes with stationary bags
-2. **Conveyor Mode** - For counting bags crossing a line on a conveyor belt
+The **Live Feed** toggle on the dashboard allows for real-time monitoring and counting from connected CCTV sources.
 
-Edit `backend/app/main.py` line 133 to change mode:
-```python
-results = tracker.process_video(video_path, output_video_path, mode="static")
-```
 
 ## 📊 API Endpoints
 
