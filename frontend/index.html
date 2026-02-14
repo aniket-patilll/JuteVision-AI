@@ -58,6 +58,15 @@
             <header class="top-bar">
                 <h2>Real-Time Monitoring</h2>
                 <div class="actions">
+                    <button class="btn-secondary" id="reset-btn" style="margin-right: 10px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 4v6h-6"></path>
+                            <path d="M1 20v-6h6"></path>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                        Reset Session
+                    </button>
                     <button class="btn-secondary">Export Data</button>
                     <button class="btn-primary" id="upload-btn">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -109,6 +118,109 @@
                 </div>
             </div>
 
+            <!-- Analytics Section -->
+            <div class="analytics-section" id="analytics-section">
+                <h2>Analytics Dashboard</h2>
+
+                <!-- Key Metrics -->
+                <div class="metrics-grid">
+                    <div class="card metric-card">
+                        <div class="metric-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                        </div>
+                        <div class="metric-info">
+                            <span class="metric-label">Total Uploads</span>
+                            <span class="metric-value" id="metric-uploads">0</span>
+                        </div>
+                    </div>
+                    <div class="card metric-card">
+                        <div class="metric-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path
+                                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                                </path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
+                        </div>
+                        <div class="metric-info">
+                            <span class="metric-label">Avg. Bags/Batch</span>
+                            <span class="metric-value" id="metric-avg">0</span>
+                        </div>
+                    </div>
+                    <div class="card metric-card">
+                        <div class="metric-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        <div class="metric-info">
+                            <span class="metric-label">Success Rate</span>
+                            <span class="metric-value" id="metric-success">100%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="analytics-grid">
+                    <!-- Chart Card -->
+                    <div class="card chart-card">
+                        <div class="card-header">
+                            <h3>Production Overview (Bags/Hour)</h3>
+                            <select class="time-filter">
+                                <option>Last 24 Hours</option>
+                                <option>Last 7 Days</option>
+                            </select>
+                        </div>
+                        <div class="chart-container">
+                            <!-- CSS-only Bar Chart for Demo -->
+                            <div class="bar-chart">
+                                <div class="bar" style="height: 40%;" data-value="40"><span>09:00</span></div>
+                                <div class="bar" style="height: 60%;" data-value="60"><span>10:00</span></div>
+                                <div class="bar" style="height: 85%;" data-value="85"><span>11:00</span></div>
+                                <div class="bar" style="height: 70%;" data-value="70"><span>12:00</span></div>
+                                <div class="bar" style="height: 50%;" data-value="50"><span>13:00</span></div>
+                                <div class="bar active" style="height: 77%;" data-value="77"><span>14:00</span></div>
+                                <div class="bar" style="height: 30%;" data-value="..."><span>15:00</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity Table -->
+                    <div class="card table-card">
+                        <div class="card-header">
+                            <h3>Recent Activity Log</h3>
+                            <button class="btn-text">View All</button>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Event/File</th>
+                                    <th>Count</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analytics-table-body">
+                                <!-- Data will be injected here via script.js -->
+                                <tr>
+                                    <td colspan="4"
+                                        style="text-align: center; color: var(--text-secondary); padding: 2rem;">No
+                                        recent activity</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Upload Modal (Hidden by default) -->
             <div class="modal-backdrop" id="upload-modal">
                 <div class="modal-content">
@@ -116,6 +228,34 @@
                         <h3>Upload Video for Analysis</h3>
                         <button class="close-btn" id="close-modal">&times;</button>
                     </div>
+
+                    <!-- Mode Selection -->
+                    <div class="mode-selection" style="margin-bottom: 1.5rem;">
+                        <label
+                            style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">Select
+                            Analysis Mode:</label>
+                        <div class="radio-group" style="display: flex; gap: 1rem;">
+                            <label class="radio-card"
+                                style="flex: 1; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="radio" name="analysis-mode" value="static" checked>
+                                <div>
+                                    <strong style="display: block; color: var(--text-primary);">Static Mode</strong>
+                                    <span style="font-size: 0.8rem; color: var(--text-secondary);">For Piles &
+                                        Warehouses</span>
+                                </div>
+                            </label>
+                            <label class="radio-card"
+                                style="flex: 1; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="radio" name="analysis-mode" value="scanning">
+                                <div>
+                                    <strong style="display: block; color: var(--text-primary);">Scanning Mode</strong>
+                                    <span style="font-size: 0.8rem; color: var(--text-secondary);">For Conveyors &
+                                        Panning</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="drop-zone" id="drop-zone">
                         <div class="upload-icon">
                             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"

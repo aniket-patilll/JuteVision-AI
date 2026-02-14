@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect, Form
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -90,12 +90,19 @@ async def websocket_endpoint(websocket: WebSocket):
 # In-memory task store
 tasks = {}
 TEMP_DIR = "backend/temp_uploads" # Use the correct path relative to root if running from root
-os.makedirs(TEMP_DIR, exist_ok=True)
+# Directories
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DETECTION_DIR = os.path.join(BASE_DIR, "detections")
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads") # New upload directory
 
-# Mount static files for video download
-app.mount("/download", StaticFiles(directory=TEMP_DIR), name="download")
+# Ensure directories exist
+os.makedirs(DETECTION_DIR, exist_ok=True)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-def process_video_task(task_id: str, video_path: str):
+# Mount static files for video download (Now points to detections folder)
+app.mount("/download", StaticFiles(directory=DETECTION_DIR), name="download")
+
+def process_video_task(task_id: str, video_path: str, mode: str = "static"):
     """
     Background task to process video and update status.
     """
@@ -105,63 +112,88 @@ def process_video_task(task_id: str, video_path: str):
         tasks[task_id] = {"status": "failed", "error": "Tracker not initialized"}
         return
 
-    print(f"Starting task {task_id} for {video_path}")
+    print(f"Starting task {task_id} for {video_path} in mode {mode}")
     
     # Callback for real-time updates
     def on_update(data: dict):
         import asyncio
         # We need to run the async broadcast from this sync callback
-        # Ideally, we should use a proper async loop or queue, but for simplicity:
+        def safe_broadcast(data: dict):
+             asyncio.run(manager.broadcast(data))
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(manager.broadcast(data))
-            loop.close()
+             safe_broadcast(data)
         except Exception as e:
-            # Fallback for running inside an existing loop (which is complex in sync method)
-            # A better way for production is using a Queue or run_in_executor
             print(f"WS Broadcast error: {e}")
 
     # Simplified Async Wrapper for the callback if running in thread
-    # Since background tasks run in a threadpool, we can use asyncio.run or new loop
     def safe_broadcast(data: dict):
         asyncio.run(manager.broadcast(data))
 
     try:
-        output_video_path = f"{TEMP_DIR}/{task_id}_out.mp4"
+        # Save output to detections folder with a clean name
+        output_filename = f"detected_{task_id}.mp4"
+        output_video_path = os.path.join(DETECTION_DIR, output_filename)
         
         # Run tracking and save video with callback
-        # Note: 'process_video' is blocking, so we pass a lambda that runs the async broadcast
         # Default to "static" mode for warehouse videos (counts all unique bags)
         # Use "conveyor" mode for moving belt scenarios
-        results = tracker.process_video(video_path, output_video_path, mode="static", on_update=safe_broadcast)
+        results = tracker.process_video(video_path, output_video_path, mode=mode, on_update=safe_broadcast)
         
         # Results now contains the count directly from the tracker
         final_count = results.get("count", 0)
+        
+        # Force a final broadcast of the global total to ensure UI is in sync
+        safe_broadcast({"count": tracker.total_count})
         
         tasks[task_id] = {
             "status": "completed",
             "count": final_count,
             "results_count": final_count, # results_count is redundant but kept for compatibility
-            "video_url": f"/download/{task_id}_out.mp4"
+            "video_url": f"/download/{output_filename}"
         }
+        
+        # Optional: Clean up input file after processing
+        # if os.path.exists(video_path):
+        #     os.remove(video_path)
+        
+    except Exception as e:
+        print(f"Task {task_id} failed: {e}")
+        tasks[task_id] = {"status": "failed", "error": str(e)}
         
     except Exception as e:
         print(f"Task {task_id} failed: {e}")
         tasks[task_id] = {"status": "failed", "error": str(e)}
 
 @app.post("/upload")
-async def upload_video(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def upload_video(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = Form("static")):
+    """
+    Uploads a video file and starts background processing with the selected mode.
+    """
+    # Generate unique ID
     task_id = str(uuid.uuid4())
-    file_path = os.path.join(TEMP_DIR, f"{task_id}_{file.filename}")
     
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
-    tasks[task_id] = {"status": "processing"}
-    background_tasks.add_task(process_video_task, task_id, file_path)
+    # Save file
+    file_location = os.path.join(UPLOAD_DIR, f"{task_id}_{file.filename}")
+    with open(file_location, "wb+") as file_object:
+        file_object.write(await file.read()) # Use await file.read() for async
+    
+    # Initial task status
+    tasks[task_id] = {"status": "processing", "file": file.filename, "mode": mode}
+    
+    # Start background processing
+    background_tasks.add_task(process_video_task, task_id, file_location, mode)
     
     return {"task_id": task_id, "message": "Video uploaded and processing started."}
+
+@app.post("/reset")
+async def reset_session():
+    """Resets the session count and history."""
+    global tracker
+    if tracker:
+        tracker.reset_state()
+        # Broadcast reset to all clients
+        await manager.broadcast({"count": 0, "event": "reset"})
+    return {"message": "Session reset successfully", "count": 0}
 
 @app.get("/tasks/{task_id}")
 def get_task_status(task_id: str):
@@ -185,9 +217,14 @@ def generate_frames():
         if not success:
             break
         
-        # DUMMY: Just annotate with current count
-        cv2.putText(frame, f"Live Stream - Count: {tracker.total_count}", (20, 50), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        # Run Live AI Processing
+        # This updates the global tracker.total_count
+        frame = tracker.process_live_frame(frame)
+        
+        # Broadcast update to UI every 5 frames to avoid flooding
+        # (Optional, but good for keeping the "Total Count" card in sync)
+        # if tracker.total_count % 1 == 0: 
+        #    ... (requires async magic inside sync generator, skipping for now, stream has visual count)
         
         ret, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
