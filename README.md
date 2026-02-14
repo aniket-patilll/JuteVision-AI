@@ -5,11 +5,14 @@ An AI-powered system for automated counting of jute bags using YOLOv8 object det
 ## 🎯 Features
 
 - **Real-time Jute Bag Detection** - YOLOv8-powered object detection
+- **Tiled Detection (SAHI-lite)** - Accurate counting of small objects in high-res images
 - **Automatic Counting** - Tracks unique bags with persistent IDs
-- **Video Processing** - Upload and process warehouse videos
-- **Live Streaming** - MJPEG camera feed support
-- **WebSocket Updates** - Real-time count updates to frontend
-- **Modern Web UI** - Clean, responsive dashboard with drag & drop upload
+- **Supabase Authentication** - Secure login with Google OAuth support
+- **Video & Image Analysis** - Process warehouse piles or conveyor videos
+- **Live CCTV Streaming** - Real-time MJPEG camera feed integration
+- **WebSocket Updates** - Instant count updates to the dashboard
+- **Analytics Dashboard** - History tracking with CSV data export
+- **Modern Web UI** - Premium design with responsive dashboard and modal uploads
 
 ## 🏗️ Technology Stack
 
@@ -23,7 +26,8 @@ An AI-powered system for automated counting of jute bags using YOLOv8 object det
 ### Frontend
 - **Vite** - Next-generation build tool
 - **Vanilla JavaScript** - Lightweight and fast
-- **CSS3** - Modern styling
+- **Supabase** - Authentication & Backend-as-a-Service
+- **CSS3** - Modern styling with custom design system
 
 ## 📋 Prerequisites
 
