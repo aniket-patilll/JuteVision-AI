@@ -1,3 +1,8 @@
+import { requireAuth, signOut } from './auth.js';
+
+// Protect Route
+requireAuth();
+
 const uploadBtn = document.getElementById('upload-btn');
 const modal = document.getElementById('upload-modal');
 const closeModal = document.getElementById('close-modal');
@@ -5,6 +10,16 @@ const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const uploadList = document.getElementById('upload-list');
 const currentCount = document.getElementById('current-count');
+
+// Logout Logic
+const logoutBtn = document.getElementById('nav-logout');
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await signOut();
+        window.location.href = 'login.html';
+    });
+}
 
 // Modal Logic
 uploadBtn.addEventListener('click', () => {
@@ -155,40 +170,34 @@ async function pollTaskStatus(taskId, element) {
 }
 
 function addAnalyticsRow(filename, count, status) {
-    const tableBody = document.getElementById('analytics-table-body');
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Remove empty state row if it exists
-    if (tableBody.rows.length === 1 && tableBody.rows[0].cells.length === 1) {
-        tableBody.innerHTML = '';
+    // Get existing data from localStorage
+    let analyticsData = [];
+    const storedData = localStorage.getItem('analyticsData');
+    if (storedData) {
+        analyticsData = JSON.parse(storedData);
     }
 
-    const row = document.createElement('tr');
+    // Add new entry
+    analyticsData.unshift({
+        time: timeString,
+        filename: filename,
+        count: count,
+        status: status
+    });
 
-    // Determine badge class
-    let badgeClass = 'info';
-    if (status === 'Completed') badgeClass = 'success';
-    else if (status === 'Failed') badgeClass = 'danger';
+    // Keep only last 50 entries
+    if (analyticsData.length > 50) {
+        analyticsData = analyticsData.slice(0, 50);
+    }
 
-    row.innerHTML = `
-        <td>${timeString}</td>
-        <td>${filename}</td>
-        <td>${count}</td>
-        <td><span class="status-badge ${badgeClass}">${status}</span></td>
-    `;
-
-    // Add glowing effect to new row
-    row.style.animation = 'pulse-green 1s ease';
-
-    // Add to top
-    tableBody.prepend(row);
-
-    // Update global metrics
-    updateGlobalStats();
+    // Save back to localStorage
+    localStorage.setItem('analyticsData', JSON.stringify(analyticsData));
 }
 
-// WebSocket Logic
+// WebSocket Connection Logic
 // Connect to backend WebSocket (backend runs on port 8000)
 const wsUrl = 'ws://localhost:8000/ws';
 const socket = new WebSocket(wsUrl);
@@ -241,12 +250,7 @@ navDashboard.addEventListener('click', (e) => {
     document.querySelector('.main-content').scrollTo({ top: 0, behavior: 'smooth' });
 });
 
-navAnalytics.addEventListener('click', (e) => {
-    e.preventDefault();
-    navAnalytics.classList.add('active');
-    navDashboard.classList.remove('active');
-    analyticsSection.scrollIntoView({ behavior: 'smooth' });
-});
+
 
 // Update Stats Logic
 function updateGlobalStats() {

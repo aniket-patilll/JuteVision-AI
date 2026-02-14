@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics | JuteVision AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Top Header -->
+        <header class="site-header">
+            <div class="header-left">
+                <img src="assets/thirdeye-logo.png" alt="ThirdEye Data" class="header-logo">
+                <div class="divider-vertical" style="margin-top: 10px;"></div>
+                <h1 class="header-title" style="margin-top: 10px; color:black">JuteVision AI</h1>
+            </div>
+
+            <nav class="header-nav">
+                <a href="index.html" class="nav-item">Dashboard</a>
+                <a href="analytics.html" class="nav-item active">Analytics</a>
+            </nav>
+
+            <div class="header-right">
+                <div class="system-status">
+                    <div class="status-indicator online"></div>
+                    <span>System Online</span>
+                </div>
+                <button class="btn-logout" id="nav-logout" title="Logout">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="page-header">
+                <h2 style="color:#497A21">Analytics Dashboard</h2>
+                <div class="actions">
+                    <button class="btn-secondary" id="export-btn">Export Data</button>
+                </div>
+            </header>
+
+            <!-- Key Metrics -->
+            <div class="metrics-grid">
+                <div class="card metric-card">
+                    <div class="metric-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-label" style="color:#497A21">Total Uploads</span>
+                        <span class="metric-value" id="metric-uploads">0</span>
+                    </div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-label" style="color:#497A21">Avg. Bags/Batch</span>
+                        <span class="metric-value" id="metric-avg">0</span>
+                    </div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-label" style="color:#497A21">Success Rate</span>
+                        <span class="metric-value" id="metric-success">100%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analytics-grid">
+                <!-- Chart Card -->
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3 style="color:#497A21">Production Overview (Bags/Hour)</h3>
+                        <select class="time-filter">
+                            <option>Last 24 Hours</option>
+                            <option>Last 7 Days</option>
+                        </select>
+                    </div>
+                    <div class="chart-container">
+                        <!-- CSS-only Bar Chart for Demo -->
+                        <div class="bar-chart">
+                            <div class="bar" style="height: 40%;" data-value="40"><span>09:00</span></div>
+                            <div class="bar" style="height: 60%;" data-value="60"><span>10:00</span></div>
+                            <div class="bar" style="height: 85%;" data-value="85"><span>11:00</span></div>
+                            <div class="bar" style="height: 70%;" data-value="70"><span>12:00</span></div>
+                            <div class="bar" style="height: 50%;" data-value="50"><span>13:00</span></div>
+                            <div class="bar active" style="height: 77%;" data-value="77"><span>14:00</span></div>
+                            <div class="bar" style="height: 30%;" data-value="..."><span>15:00</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Table -->
+                <div class="card table-card">
+                    <div class="card-header">
+                        <h3 style="color:#497A21">Recent Activity Log</h3>
+                        <button class="btn-text">View All</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Event/File</th>
+                                <th>Count</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="analytics-table-body">
+                            <!-- Data will be injected here via script.js -->
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No recent activity</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="analytics.js"></script>
+</body>
+</html>

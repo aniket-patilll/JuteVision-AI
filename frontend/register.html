@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | JuteVision AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--bg-dark);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+        .auth-card {
+            background-color: var(--bg-card);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow-soft);
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid var(--border-color);
+        }
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .auth-logo {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-light));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            margin: 0 auto 1rem;
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-dark);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus {
+            border-color: var(--accent-green);
+        }
+        .btn-full {
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        .auth-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        .auth-footer a {
+            color: var(--accent-green);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .error-msg {
+            color: var(--danger);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            display: none;
+            text-align: center;
+        }
+        .success-msg {
+            color: var(--accent-green);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            display: none;
+            text-align: center;
+            background-color: rgba(46, 125, 50, 0.1);
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-card">
+        <div class="auth-header">
+            <div><img src="assets/thirdeye-logo.png" alt="ThirdEye Data" class="header-logo" style="margin-bottom: 15px;"></div>
+            <h2>Create Account</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Join JuteVision AI today</p>
+        </div>
+
+        <div id="error-message" class="error-msg"></div>
+        <div id="success-message" class="success-msg">
+            Account created! Please check your email to verify your account before signing in.
+        </div>
+
+        <form id="register-form">
+            <div class="form-group">
+                <label class="form-label" for="fullname">Full Name</label>
+                <input type="text" id="fullname" class="form-input" placeholder="Enter your full name" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="email">Email Address</label>
+                <input type="email" id="email" class="form-input" placeholder="Enter your email address" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" class="form-input" placeholder="Enter your password" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="confirm-password">Confirm Password</label>
+                <input type="password" id="confirm-password" class="form-input" placeholder="Confirm your password" required>
+            </div>
+            
+            <button type="submit" class="btn-primary btn-full">Create Account</button>
+        </form>
+
+        <div class="auth-footer">
+            Already have an account? <a href="login.html">Sign in</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { signUp, requireNoAuth } from './auth.js';
+
+        // Check if already logged in
+        requireNoAuth();
+
+        const registerForm = document.getElementById('register-form');
+        const errorMsg = document.getElementById('error-message');
+        const successMsg = document.getElementById('success-message');
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fullName = document.getElementById('fullname').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const btn = registerForm.querySelector('button');
+
+            if (password !== confirmPassword) {
+                errorMsg.textContent = "Passwords do not match";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            btn.textContent = 'Creating Account...';
+            btn.disabled = true;
+            errorMsg.style.display = 'none';
+
+            const { data, error } = await signUp(email, password, fullName);
+
+            if (error) {
+                errorMsg.textContent = error.message;
+                errorMsg.style.display = 'block';
+                btn.textContent = 'Create Account';
+                btn.disabled = false;
+            } else {
+                successMsg.style.display = 'block';
+                registerForm.reset();
+                btn.textContent = 'Create Account';
+                btn.disabled = false;
+                // Optional: Redirect or wait
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+            }
+        });
+    </script>
+</body>
+</html>
