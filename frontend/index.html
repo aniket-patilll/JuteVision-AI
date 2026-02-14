@@ -67,7 +67,7 @@
                             <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round" />
                         </svg>
-                        Upload Video
+                        Uploads
                     </button>
                 </div>
             </header>
@@ -80,12 +80,24 @@
                         <span class="live-badge">LIVE</span>
                     </div>
                     <div class="video-container">
-                        <!-- MJPEG Stream Source -->
-                        <img src="http://localhost:8000/stream" alt="Live Camera Feed" class="live-stream-img"
-                            onerror="this.style.display='none';this.onerror=null;this.parentElement.innerHTML+='<p class=\'error-msg\' style=\'text-align:center;color:var(--text-secondary);padding:40px;\'>Stream Offline</p>'">
+                        <!-- MJPEG Stream Source - Default Empty -->
+                        <img src="" alt="Live Camera Feed" class="live-stream-img" id="camera-feed"
+                            style="display: none;">
+                        <div class="camera-placeholder" id="camera-placeholder">
+                            <p>Camera is Disable</p>
+                        </div>
                         <div class="overlay-ui">
                             <div class="zone-line"></div>
                         </div>
+                    </div>
+
+                    <!-- Camera Toggle Control -->
+                    <div class="camera-controls">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="camera-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="toggle-label">Enable Camera</span>
                     </div>
                 </div>
 
@@ -117,29 +129,60 @@
                     </div>
 
                     <!-- Mode Selection -->
-                    <div class="mode-selection" style="margin-bottom: 1.5rem;">
+                    <div class="mode-selection" style="margin-bottom: 2rem;">
                         <label
-                            style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">Select
+                            style="display: block; margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;">Select
                             Analysis Mode:</label>
-                        <div class="radio-group" style="display: flex; gap: 1rem;">
-                            <label class="radio-card"
-                                style="flex: 1; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="radio-group" style="display: flex; flex-direction: column; gap: 1rem;">
+
+                            <!-- Static Mode -->
+                            <label class="radio-card">
                                 <input type="radio" name="analysis-mode" value="static" checked>
-                                <div>
-                                    <strong style="display: block; color: var(--text-primary);">Static Mode</strong>
-                                    <span style="font-size: 0.8rem; color: var(--text-secondary);">For Piles &
-                                        Warehouses</span>
+                                <div class="card-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                                    </svg>
+                                </div>
+                                <div class="card-text">
+                                    <strong>Static Mode</strong>
+                                    <span>For Piles & Warehouses (Images)</span>
                                 </div>
                             </label>
-                            <label class="radio-card"
-                                style="flex: 1; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+
+                            <!-- Scanning Mode -->
+                            <label class="radio-card">
                                 <input type="radio" name="analysis-mode" value="scanning">
-                                <div>
-                                    <strong style="display: block; color: var(--text-primary);">Scanning Mode</strong>
-                                    <span style="font-size: 0.8rem; color: var(--text-secondary);">For Conveyors &
-                                        Panning</span>
+                                <div class="card-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                                    </svg>
+                                </div>
+                                <div class="card-text">
+                                    <strong>Scanning Mode</strong>
+                                    <span>For Conveyors & Panning (Videos)</span>
                                 </div>
                             </label>
+
+                            <!-- Live Camera -->
+                            <label class="radio-card">
+                                <input type="radio" name="analysis-mode" value="live">
+                                <div class="card-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M23 7l-7 5 7 5V7z"></path>
+                                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                                    </svg>
+                                </div>
+                                <div class="card-text">
+                                    <strong>CCTV Live</strong>
+                                    <span>Real-time CCTV Feed</span>
+                                </div>
+                            </label>
+
                         </div>
                     </div>
 
@@ -156,6 +199,19 @@
                         <p>Drag & Drop video here or <span>Browse</span></p>
                         <input type="file" id="file-input" accept="video/mp4,video/avi" hidden>
                     </div>
+
+                    <!-- Start Camera Button (Hidden by default) -->
+                    <div id="start-camera-container" style="display: none; text-align: center; padding: 20px;">
+                        <button id="start-camera-btn" class="btn-primary"
+                            style="width: 100%; justify-content: center; padding: 12px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M23 7l-7 5 7 5V7z"></path>
+                                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                            </svg>
+                            Start CCTV Live
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -163,6 +219,50 @@
     </div>
 
     <script type="module" src="script.js"></script>
+    <script>
+        // Toggle File Input Acceptance based on Mode
+        const modeRadios = document.querySelectorAll('input[name="analysis-mode"]');
+        const fileInput = document.getElementById('file-input');
+        const dropZoneText = document.querySelector('.drop-zone p');
+
+        function updateInputMode() {
+            const selectedMode = document.querySelector('input[name="analysis-mode"]:checked').value;
+            const dropZone = document.getElementById('drop-zone');
+            const startCameraContainer = document.getElementById('start-camera-container');
+
+            if (selectedMode === 'live') {
+                dropZone.style.display = 'none';
+                startCameraContainer.style.display = 'block';
+            } else {
+                dropZone.style.display = 'flex';
+                startCameraContainer.style.display = 'none';
+
+                if (selectedMode === 'static') {
+                    fileInput.accept = "image/jpeg,image/png,image/jpg";
+                    dropZoneText.innerHTML = "Drag & Drop <span>Image</span> here or <span>Browse</span>";
+                } else {
+                    fileInput.accept = "video/mp4,video/avi,video/mov";
+                    dropZoneText.innerHTML = "Drag & Drop <span>Video</span> here or <span>Browse</span>";
+                }
+            }
+        }
+
+        modeRadios.forEach(radio => radio.addEventListener('change', updateInputMode));
+
+        // Start Camera Logic
+        document.getElementById('start-camera-btn').addEventListener('click', () => {
+            // Close Modal
+            document.getElementById('upload-modal').style.display = 'none';
+            // Enable Camera (trigger the toggle in script.js)
+            const cameraToggle = document.getElementById('camera-toggle');
+            if (cameraToggle && !cameraToggle.checked) {
+                cameraToggle.click();
+            }
+        });
+
+        // Initialize on load
+        updateInputMode();
+    </script>
 </body>
 
 </html>

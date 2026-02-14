@@ -1,89 +1,18 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual Environments
+# Sensitive Information
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 
-# Project Directories & Logs
+# Dependencies & System Junk (Recommended to keep ignored)
+node_modules/
+__pycache__/
+.venv/
+venv/
+env/
+.DS_Store
+.git
+backend/detections/
+backend/uploads/
 backend/temp_uploads/
 backend/runs/
 backend/training_data/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Node.js
-node_modules/
-jspm_packages/
-frontend/dist/
-.npm
-.eslintcache
-.node_repl_history
-
-# IDE & OS
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-.project
-.settings/
-
-# Large Files / Models
-*.pt
-*.pth
-*.onnx
-*.weights
-*.h5
-*.pb
-
-# Temporary / Debug Files
-debug_tracker_visual.py
-debug_detection.jpg
-video_debug_frames/
-extract_frames.py
-backend/debug_frames/
 *.mp4
-*.avi
-*.mov
-
-# Coverage & Tests
-htmlcov/
-.tox/
-.nohup.out
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
+*.pt

@@ -142,15 +142,26 @@ async function pollTaskStatus(taskId, element) {
                 countSpan.style.marginLeft = '10px';
                 element.querySelector('.file-info').appendChild(countSpan);
 
-                // Add Video Player / Link
-                const videoContainer = document.createElement('div');
-                videoContainer.className = 'result-video-container';
-                videoContainer.style.marginTop = '10px';
-                videoContainer.innerHTML = `
-                    <video controls src="http://localhost:8000${task.video_url}" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);"></video>
-                    <a href="http://localhost:8000${task.video_url}" download class="download-link" style="display: block; margin-top: 5px; color: var(--accent-green); font-size: 0.8rem;">Download Processed Video</a>
-                `;
-                element.appendChild(videoContainer);
+                // Add Result Display (Image or Video)
+                const resultContainer = document.createElement('div');
+                resultContainer.className = 'result-media-container';
+                resultContainer.style.marginTop = '10px';
+
+                const mediaUrl = `http://localhost:8000${task.video_url}`; // Backend sends URL in video_url field for both
+
+                if (task.is_image) {
+                    resultContainer.innerHTML = `
+                        <img src="${mediaUrl}" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <a href="${mediaUrl}" download class="download-link" style="display: block; margin-top: 5px; color: var(--accent-green); font-size: 0.8rem;">Download Processed Image</a>
+                    `;
+                } else {
+                    resultContainer.innerHTML = `
+                        <video controls src="${mediaUrl}" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);"></video>
+                        <a href="${mediaUrl}" download class="download-link" style="display: block; margin-top: 5px; color: var(--accent-green); font-size: 0.8rem;">Download Processed Video</a>
+                    `;
+                }
+
+                element.appendChild(resultContainer);
 
                 // Add to Analytics Table
                 // Extract filename from the element text or use a generic name if needed
@@ -161,6 +172,16 @@ async function pollTaskStatus(taskId, element) {
                 clearInterval(interval);
                 element.querySelector('.status-text').textContent = 'Failed';
                 element.querySelector('.fill').style.backgroundColor = 'var(--danger)';
+
+                if (task.error) {
+                    const errorSpan = document.createElement('div');
+                    errorSpan.className = 'error-message';
+                    errorSpan.textContent = task.error;
+                    errorSpan.style.color = 'var(--danger)';
+                    errorSpan.style.fontSize = '0.8rem';
+                    errorSpan.style.marginTop = '4px';
+                    element.querySelector('.file-info').appendChild(errorSpan);
+                }
             }
         } catch (e) {
             console.error(e);
@@ -197,6 +218,52 @@ function addAnalyticsRow(filename, count, status) {
     localStorage.setItem('analyticsData', JSON.stringify(analyticsData));
 }
 
+// Camera Toggle Logic
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM Loaded - Initializing Camera Toggle");
+    const cameraToggle = document.getElementById('camera-toggle');
+    const cameraFeed = document.getElementById('camera-feed');
+    const cameraPlaceholder = document.getElementById('camera-placeholder');
+    const streamUrl = 'http://localhost:8000/stream';
+
+    if (cameraToggle && cameraFeed) {
+        // Function to update UI based on toggle state
+        const updateCameraState = () => {
+            console.log("Updating Camera State. Checked:", cameraToggle.checked);
+            if (cameraToggle.checked) {
+                // Enable Camera
+                // Add timestamp to prevent caching issues when re-enabling
+                cameraFeed.src = `${streamUrl}?t=${new Date().getTime()}`;
+                cameraFeed.style.display = 'block';
+
+                // Hide placeholder
+                if (cameraPlaceholder) cameraPlaceholder.style.display = 'none';
+            } else {
+                // Disable Camera
+                cameraFeed.style.display = 'none';
+                cameraFeed.src = "";
+                cameraFeed.removeAttribute('src'); // Stop stream
+
+                // Show placeholder
+                if (cameraPlaceholder) cameraPlaceholder.style.display = 'flex';
+            }
+        };
+
+        // Initialize state
+        cameraToggle.checked = false;
+        updateCameraState();
+
+        // Event Listener
+        cameraToggle.addEventListener('change', updateCameraState);
+    } else {
+        console.error("Camera elements not found in DOM");
+        // Fallback check if elements exist but DOMContentLoaded fired before this script (shouldn't happen with module)
+        const toggle = document.getElementById('camera-toggle');
+        if (toggle) console.log("Elements found on second check");
+    }
+});
+
+
 // WebSocket Connection Logic
 // Connect to backend WebSocket (backend runs on port 8000)
 const wsUrl = 'ws://localhost:8000/ws';
@@ -209,9 +276,26 @@ socket.onopen = () => {
 
 socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
+
     if (data.event === "reset") {
         resetUI();
-    } else if (data.count !== undefined) {
+    }
+    else if (data.type === "frame") {
+        // LIVE PROCESSING FEEDBACK
+        const cameraFeed = document.getElementById('camera-feed');
+        const cameraPlaceholder = document.getElementById('camera-placeholder');
+
+        if (cameraFeed && cameraPlaceholder) {
+            cameraFeed.src = `data:image/jpeg;base64,${data.data}`;
+            cameraFeed.style.display = 'block';
+            cameraPlaceholder.style.display = 'none';
+        }
+
+        if (data.count !== undefined) {
+            updateCount(data.count);
+        }
+    }
+    else if (data.count !== undefined) {
         updateCount(data.count);
     }
 };
@@ -351,4 +435,3 @@ function resetUI() {
     const uploadList = document.getElementById('upload-list');
     uploadList.innerHTML = '<div class="empty-state">No active uploads</div>';
 }
-

@@ -1,6 +1,7 @@
 import cv2
 import torch
 import numpy as np
+import os
 from ultralytics import YOLO
 try:
     from backend.app.utils import get_centroid, annotate_frame
@@ -8,14 +9,19 @@ except ImportError:
     from .utils import get_centroid, annotate_frame
 
 class JuteBagTracker:
-    def __init__(self, model_name="backend/models/sacks_custom.pt"):  # Custom sacks model
+    def __init__(self, model_name="sacks_custom.pt"):  # Custom sacks model
         print("Initializing JuteBagTracker (Custom Sacks Model)...")
         self.device = self._get_device()
         print(f"Using device: {self.device}")
         
+        # Dynamic path resolution
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        models_dir = os.path.join(os.path.dirname(current_dir), "models")
+        model_path = os.path.join(models_dir, model_name)
+        
         try:
-            self.model = YOLO(model_name)
-            print(f"YOLOv8 loaded successfully from {model_name}")
+            self.model = YOLO(model_path)
+            print(f"YOLOv8 loaded successfully from {model_path}")
         except Exception as e:
             print(f"Error loading YOLO: {e}")
             self.model = None
@@ -49,31 +55,41 @@ class JuteBagTracker:
         Performs inference using tiling (SAHI-lite) to detect small objects.
         Splits frame into overlapping tiles + full frame, then merges results with NMS.
         """
+        if self.model is None:
+            return torch.empty((0, 4)), []
+
         height, width = frame.shape[:2]
         
         # Define Overlapping Tiles (ensure objects on seams are detected)
-        # We use a 4-tile grid with overlap + 1 center tile + 1 full frame
+        # Using a dense 3x3 grid + full frame for maximum coverage
         
-        # Split points with overlap
-        x_mid_left = int(width * 0.45)
-        x_mid_right = int(width * 0.55)
-        y_mid_top = int(height * 0.45)
-        y_mid_bottom = int(height * 0.55)
+        tiles = []
         
-        tiles = [
-            # Top-Left (extends past mid)
-            (0, 0, x_mid_right, y_mid_bottom),
-            # Top-Right (starts before mid)
-            (x_mid_left, 0, width, y_mid_bottom),
-            # Bottom-Left
-            (0, y_mid_top, x_mid_right, height),
-            # Bottom-Right
-            (x_mid_left, y_mid_top, width, height),
-            # Center Tile (focus on the middle pile)
-            (int(width * 0.25), int(height * 0.25), int(width * 0.75), int(height * 0.75)),
-            # Full Frame (Context)
-            (0, 0, width, height)
-        ]
+        # 1. Full Frame
+        tiles.append((0, 0, width, height))
+        
+        # 2. 2x2 Grid with Overlap
+        x_step = int(width * 0.6)
+        y_step = int(height * 0.6)
+        
+        # Top-Left, Top-Right, Bottom-Left, Bottom-Right
+        tiles.append((0, 0, x_step, y_step))
+        tiles.append((width - x_step, 0, width, y_step))
+        tiles.append((0, height - y_step, x_step, height))
+        tiles.append((width - x_step, height - y_step, width, height))
+        
+        # 3. Center Cross (for seams)
+        center_w = int(width * 0.6)
+        center_h = int(height * 0.6)
+        cx_start = int((width - center_w) / 2)
+        cy_start = int((height - center_h) / 2)
+        tiles.append((cx_start, cy_start, cx_start + center_w, cy_start + center_h))
+        
+        # 4. Vertical Stripes (Left, Center, Right) for tall piles
+        v_w = int(width * 0.4)
+        tiles.append((0, 0, v_w, height))
+        tiles.append((int(width*0.3), 0, int(width*0.7), height))
+        tiles.append((width - v_w, 0, width, height))
         
         all_boxes = []
         all_confs = []
@@ -97,8 +113,9 @@ class JuteBagTracker:
                 pass # Fallback to original if enhancement fails
             
             # Run Inference
-            # Conf 0.25: Lowered back to catch all bags. We rely on strict Edge/Shape filters to stop noise.
-            results = self.model.predict(tile_img, conf=0.25, iou=0.45, verbose=False)
+            # Conf 0.15: Catch faint bags (Recall++). TTA (augment=True) helps robustness.
+            # IoU 0.60: Allow more overlap for piles.
+            results = self.model.predict(tile_img, conf=0.15, iou=0.60, augment=True, verbose=False)
             
             if results and len(results[0].boxes) > 0:
                 boxes = results[0].boxes.xyxy.cpu().numpy() # Use xyxy for easy offsetting
@@ -143,21 +160,24 @@ class JuteBagTracker:
             
             # Criteria (SMART):
             # 1. Size: Reject huge (wall) or tiny (speck) objects.
-            is_large = area > frame_area * 0.15 # Slightly looser than before
-            is_tiny = area < frame_area * 0.001
+            # Relaxed for static piles: bags near camera can be large
+            is_large = area > frame_area * 0.35 
+            is_tiny = area < frame_area * 0.0005
             
             # 2. Shape: Bags are generally "squarish" (0.5 to 2.5). 
-            bad_ar = (aspect_ratio < 0.5) or (aspect_ratio > 2.5)
+            bad_ar = (aspect_ratio < 0.4) or (aspect_ratio > 3.0)
             
-            # 3. Position: Reject detections in the top 15% (Ceiling)
-            is_high = cy < (height * 0.15)
+            # 3. Position: Reject detections in the top 5% (Ceiling) - relaxed from 15%
+            is_high = cy < (height * 0.05)
             
             # 4. EDGE EXCLUSION: Walls usually touch the edges. Bags are in the middle.
-            # Reject if box touches Left, Right, or Top edge (within 5 pixels)
-            touches_edge = (x1 < 5) or (y1 < 5) or (x2 > width - 5)
+            # DISABLED for Static Mode/Tiling because bags often touch tile edges and image edges in full piles.
+            # touches_edge = (x1 < 5) or (y1 < 5) or (x2 > width - 5)
+            touches_edge = False 
             
-            # 5. VERTICAL WALL FILTER: Reject objects that are "Tall" (height > 20% of screen)
-            is_tall = h > (height * 0.20)
+            # 5. VERTICAL WALL FILTER: Reject objects that are "Tall" (height > 50% of screen)
+            # Relaxed for vertical piles
+            is_tall = h > (height * 0.50)
 
             if not (is_large or is_tiny or bad_ar or is_high or touches_edge or is_tall):
                 valid_boxes.append(box)
@@ -165,8 +185,6 @@ class JuteBagTracker:
         if len(valid_boxes) > 0:
             return torch.stack(valid_boxes), list(range(len(valid_boxes)))
         else:
-            return torch.empty((0, 4)), []
-
             return torch.empty((0, 4)), []
 
     def process_live_frame(self, frame):
@@ -192,10 +210,12 @@ class JuteBagTracker:
         cv2.putText(annotated_frame, "LIVE SCANNING ZONE", (zone_x1, zone_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
         
         # 2. Run Tracking
-        results = self.model.track(frame, persist=True, conf=0.6, iou=0.5, 
+        # Relaxed for detection. augment=False for speed in live view.
+        results = self.model.track(frame, persist=True, conf=0.3, iou=0.6, 
                                  tracker="bytetrack.yaml", 
                                  agnostic_nms=True,
                                  classes=[0],
+                                 augment=False, # Keep false for FPS
                                  verbose=False)
         
         if results and results[0].boxes is not None and len(results[0].boxes) > 0:
@@ -248,7 +268,11 @@ class JuteBagTracker:
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             print(f"Error: Could not open video {video_path}")
-            return {"count": 0, "status": "failed"}
+            return {"count": 0, "status": "failed", "error": f"Could not open video {video_path}"}
+
+        if self.model is None:
+             print("Error: Model not loaded")
+             return {"count": 0, "status": "failed", "error": "Model not loaded"}
 
         # Video properties
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -310,10 +334,12 @@ class JuteBagTracker:
             else:
                 # --- SCANNING MODE: Center Zone Tracking ---
                 # Run YOLOv8 tracking with OPTIMIZED parameters
-                results = self.model.track(frame, persist=True, conf=0.6, iou=0.5, 
+                # augment=True for offline video processing (Robustness)
+                results = self.model.track(frame, persist=True, conf=0.15, iou=0.6, 
                                         tracker="bytetrack.yaml", 
                                         agnostic_nms=True,
                                         classes=[0],
+                                        augment=True,
                                         verbose=False)
                 
                 if results and results[0].boxes is not None and len(results[0].boxes) > 0:
@@ -366,6 +392,17 @@ class JuteBagTracker:
             
             # Write merged frame
             out.write(annotated_frame)
+            
+            # Broadcast Frame (Live Feedback)
+            if on_update and frame_idx % 2 == 0: # Skip every other frame to save bandwidth if needed
+                try:
+                    import base64
+                    _, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+                    jpg_as_text = base64.b64encode(buffer).decode('utf-8')
+                    on_update({"type": "frame", "data": jpg_as_text, "count": self.total_count + current_count})
+                except Exception as e:
+                    print(f"Frame broadcast failed: {e}")
+
             frame_idx += 1
 
         cap.release()
@@ -377,6 +414,67 @@ class JuteBagTracker:
         print(f"Processed video saved to {output_path} | Final Count: {current_count}")
         return {"count": current_count, "status": "completed"}
 
+    def process_image(self, image_path, output_path, on_update=None):
+        """
+        Processes a single image file for bag counting.
+        """
+        import cv2
+        import numpy as np
+
+        print(f"Starting image processing: {image_path}")
+        
+        # Load Image
+        frame = cv2.imread(image_path)
+        if frame is None:
+            print(f"Error: Could not open image {image_path}")
+            return {"count": 0, "status": "failed", "error": f"Could not open image {image_path}"}
+            
+        if self.model is None:
+             print("Error: Model not loaded")
+             return {"count": 0, "status": "failed", "error": "Model not loaded"}
+             
+        height, width = frame.shape[:2]
+        annotated_frame = frame.copy()
+        
+        # Run Tiled Detection (Best for static piles)
+        # Using detect_with_tiling from video processing logic
+        final_boxes, _ = self.detect_with_tiling(frame)
+        
+        count = len(final_boxes)
+        
+        # Visualize
+        cv2.putText(annotated_frame, f"STATIC IMAGE COUNT: {count}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
+        
+        for box in final_boxes:
+            x1, y1, x2, y2 = map(int, box)
+            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+            
+            # Draw Box & Dot
+            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.circle(annotated_frame, (cx, cy), 8, (0, 255, 0), -1)
+            
+        # Save Output
+        cv2.imwrite(output_path, annotated_frame)
+        
+        # Broadcast Frame (Live Feedback for Image)
+        if on_update:
+            try:
+                import base64
+                _, buffer = cv2.imencode('.jpg', annotated_frame)
+                jpg_as_text = base64.b64encode(buffer).decode('utf-8')
+                on_update({"type": "frame", "data": jpg_as_text, "count": self.total_count + count})
+            except Exception as e:
+                print(f"Frame broadcast failed: {e}")
+
+        # Update Global Count
+        self.total_count += count
+        
+        print(f"Processed image saved to {output_path} | Final Count: {count}")
+        return {
+            "count": count, 
+            "status": "completed", 
+            "video_url": f"/download/{os.path.basename(output_path)}" # Reuse video_url field for consistency
+        }
     # Generator for future streaming support
     # def process_video_generator(self, video_path, line_y=500):
     #     ... implementation deferred ...

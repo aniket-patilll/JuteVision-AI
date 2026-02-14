@@ -115,15 +115,8 @@ def process_video_task(task_id: str, video_path: str, mode: str = "static"):
     print(f"Starting task {task_id} for {video_path} in mode {mode}")
     
     # Callback for real-time updates
-    def on_update(data: dict):
-        import asyncio
-        # We need to run the async broadcast from this sync callback
-        def safe_broadcast(data: dict):
-             asyncio.run(manager.broadcast(data))
-        try:
-             safe_broadcast(data)
-        except Exception as e:
-            print(f"WS Broadcast error: {e}")
+    def safe_broadcast(data: dict):
+        asyncio.run(manager.broadcast(data))
 
     # Simplified Async Wrapper for the callback if running in thread
     def safe_broadcast(data: dict):
@@ -164,26 +157,74 @@ def process_video_task(task_id: str, video_path: str, mode: str = "static"):
         print(f"Task {task_id} failed: {e}")
         tasks[task_id] = {"status": "failed", "error": str(e)}
 
-@app.post("/upload")
-async def upload_video(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = Form("static")):
+def process_image_task(task_id: str, image_path: str):
     """
-    Uploads a video file and starts background processing with the selected mode.
+    Background task to process an image.
+    """
+    global tracker
+    if not tracker:
+        tasks[task_id] = {"status": "failed", "error": "Tracker not initialized"}
+        return
+
+    print(f"Starting image task {task_id} for {image_path}")
+    
+    # Callback for real-time updates
+    def safe_broadcast(data: dict):
+        asyncio.run(manager.broadcast(data))
+    
+    try:
+        output_filename = f"detected_{task_id}.jpg"
+        output_path = os.path.join(DETECTION_DIR, output_filename)
+        
+        # Run processing with callback
+        results = tracker.process_image(image_path, output_path, on_update=safe_broadcast)
+        
+        # Add to task results
+        results["video_url"] = f"/download/{output_filename}" # Frontend expects video_url for display
+        results["is_image"] = True # Flag for frontend
+        tasks[task_id] = results
+        
+        # Broadcast update
+        asyncio.run(manager.broadcast({"count": tracker.total_count}))
+        
+    except Exception as e:
+        print(f"Task {task_id} failed: {e}")
+        tasks[task_id] = {"status": "failed", "error": str(e)}
+
+@app.post("/upload")
+async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = Form("static")):
+    """
+    Uploads a file (Video or Image) and starts processing.
     """
     # Generate unique ID
     task_id = str(uuid.uuid4())
+    filename = file.filename.lower()
     
     # Save file
     file_location = os.path.join(UPLOAD_DIR, f"{task_id}_{file.filename}")
     with open(file_location, "wb+") as file_object:
-        file_object.write(await file.read()) # Use await file.read() for async
+        file_object.write(await file.read())
     
+    # Determine type
+    is_image = filename.endswith(('.jpg', '.jpeg', '.png', '.webp'))
+    
+    # Validation based on Mode
+    if mode == "static" and not is_image:
+        return JSONResponse(status_code=400, content={"message": "Static Mode strictly supports IMAGES only (JPG, PNG). Please upload an image."})
+    
+    if mode == "scanning" and is_image:
+        return JSONResponse(status_code=400, content={"message": "Scanning Mode supports VIDEOS only. Please upload a video."})
+
     # Initial task status
     tasks[task_id] = {"status": "processing", "file": file.filename, "mode": mode}
     
     # Start background processing
-    background_tasks.add_task(process_video_task, task_id, file_location, mode)
+    if is_image:
+        background_tasks.add_task(process_image_task, task_id, file_location)
+    else:
+        background_tasks.add_task(process_video_task, task_id, file_location, mode)
     
-    return {"task_id": task_id, "message": "Video uploaded and processing started."}
+    return {"task_id": task_id, "message": "Upload accepted and processing started."}
 
 @app.post("/reset")
 async def reset_session():
