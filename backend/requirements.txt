@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+opencv-python
+numpy
+torch
+torchvision
+ultralytics  # YOLOv8 for jute bag detection and tracking
+httpx  # for testing
+requests
+supervision==0.23.0  # Helpful for vision tasks visualization

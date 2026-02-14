@@ -1,0 +1,148 @@
+# JuteVision AI - Automated Jute Bag Counter
+
+An AI-powered system for automated counting of jute bags using YOLOv8 object detection and tracking.
+
+## 🎯 Features
+
+- **Real-time Jute Bag Detection** - YOLOv8-powered object detection
+- **Automatic Counting** - Tracks unique bags with persistent IDs
+- **Video Processing** - Upload and process warehouse videos
+- **Live Streaming** - MJPEG camera feed support
+- **WebSocket Updates** - Real-time count updates to frontend
+- **Modern Web UI** - Clean, responsive dashboard with drag & drop upload
+
+## 🏗️ Technology Stack
+
+### Backend
+- **FastAPI** - Modern Python web framework
+- **YOLOv8 (ultralytics)** - Object detection and tracking
+- **PyTorch** - Deep learning framework
+- **OpenCV** - Video processing
+- **WebSocket** - Real-time communication
+
+### Frontend
+- **Vite** - Next-generation build tool
+- **Vanilla JavaScript** - Lightweight and fast
+- **CSS3** - Modern styling
+
+## 📋 Prerequisites
+
+- Python 3.8+
+- Node.js 16+
+- npm or yarn
+
+## 🚀 Installation
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/saipratyushap/JuteVision-AI.git
+cd JuteVision-AI
+```
+
+### 2. Download YOLOv8 Model
+Download the YOLOv8 medium model and place it in `backend/models/`:
+```bash
+# Visit https://github.com/ultralytics/assets/releases
+# Download yolov8m.pt
+# Move it to backend/models/yolov8m.pt
+```
+
+Or use Python:
+```bash
+cd backend
+python -c "from ultralytics import YOLO; YOLO('yolov8m.pt')"
+mv yolov8m.pt models/
+```
+
+### 3. Backend Setup
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+### 4. Frontend Setup
+```bash
+cd frontend
+npm install
+```
+
+## 🎮 Usage
+
+### Start Backend Server
+```bash
+cd backend
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The backend will be available at `http://localhost:8000`
+- API documentation: `http://localhost:8000/docs`
+
+### Start Frontend Server
+```bash
+cd frontend
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173`
+
+## 📁 Project Structure
+
+```
+JuteVision_AI/
+├── backend/
+│   ├── app/
+│   │   ├── main.py         # FastAPI application
+│   │   ├── tracker.py      # YOLOv8 tracker
+│   │   ├── mock_tracker.py # Mock for testing
+│   │   └── utils.py
+│   ├── models/
+│   │   └── yolov8m.pt      # YOLOv8 model (download separately)
+│   ├── temp_uploads/       # Processed videos
+│   └── requirements.txt
+├── frontend/
+│   ├── index.html
+│   ├── script.js
+│   ├── style.css
+│   └── vite.config.js
+└── README.md
+```
+
+## 🔧 Configuration
+
+### Processing Modes
+
+The tracker supports two modes:
+
+1. **Static Mode** (Default) - For warehouse scenes with stationary bags
+2. **Conveyor Mode** - For counting bags crossing a line on a conveyor belt
+
+Edit `backend/app/main.py` line 133 to change mode:
+```python
+results = tracker.process_video(video_path, output_video_path, mode="static")
+```
+
+## 📊 API Endpoints
+
+- `POST /upload` - Upload video for processing
+- `GET /tasks/{task_id}` - Get processing status
+- `GET /stream` - MJPEG live camera stream
+- `WS /ws` - WebSocket for real-time updates
+- `GET /download/{filename}` - Download processed video
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+## 🙏 Acknowledgments
+
+- [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics) for the object detection model
+- [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
+- [Vite](https://vitejs.dev/) for the frontend build tool
+
+## 📧 Contact
+
+For questions or support, please open an issue on GitHub.

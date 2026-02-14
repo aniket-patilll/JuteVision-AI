@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.venv
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Project specific
+backend/temp_uploads/
+temp_uploads/
+
+# Large model files (download separately)
+*.pt
+*.pth
+*.onnx
+*.weights
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build outputs
+frontend/dist/
+*.log
