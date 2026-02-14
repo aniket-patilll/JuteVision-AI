@@ -77,6 +77,10 @@ app.add_middleware(
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
+        # Send initial state
+        if tracker:
+            await websocket.send_json({"count": tracker.total_count})
+            
         while True:
             # Keep connection alive
             await websocket.receive_text()
@@ -132,10 +136,13 @@ def process_video_task(task_id: str, video_path: str):
         # Use "conveyor" mode for moving belt scenarios
         results = tracker.process_video(video_path, output_video_path, mode="static", on_update=safe_broadcast)
         
+        # Results now contains the count directly from the tracker
+        final_count = results.get("count", 0)
+        
         tasks[task_id] = {
             "status": "completed",
-            "count": tracker.total_count,
-            "results_count": len(results),
+            "count": final_count,
+            "results_count": final_count, # results_count is redundant but kept for compatibility
             "video_url": f"/download/{task_id}_out.mp4"
         }
         

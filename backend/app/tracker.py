@@ -7,8 +7,8 @@ except ImportError:
     from .utils import get_centroid, annotate_frame
 
 class JuteBagTracker:
-    def __init__(self, model_name="models/yolov8m.pt"):  # YOLOv8 model in models folder
-        print("Initializing JuteBagTracker (YOLOv8 Powered)...")
+    def __init__(self, model_name="backend/models/sacks_custom.pt"):  # Custom sacks model
+        print("Initializing JuteBagTracker (Custom Sacks Model)...")
         self.device = self._get_device()
         print(f"Using device: {self.device}")
         
@@ -45,10 +45,13 @@ class JuteBagTracker:
             line_y: Y-coordinate of counting line (for conveyor mode)
             mode: "static" (count all unique bags) or "conveyor" (count line crossings)
             on_update: Callback function for real-time updates
+            
+        Returns:
+            dict: Processing results including final count
         """
         if not self.model:
             print("Model not loaded.")
-            return {}
+            return {"count": 0, "status": "failed", "error": "Model not loaded"}
 
         print(f"Processing video: {video_path} (Mode: {mode})")
         cap = cv2.VideoCapture(video_path)
@@ -63,30 +66,37 @@ class JuteBagTracker:
         frame_idx = 0
         detection_count = 0
         
+        # Local Counting State (Reset per video)
+        current_count = 0
+        counted_ids = set()
+        
         while cap.isOpened():
             success, frame = cap.read()
             if not success:
                 break
             
-            # Run YOLOv8 tracking
-            # persist=True is crucial for keeping IDs across frames
-            # conf=0.03 - ULTRA low confidence to catch every possible bag
-            results = self.model.track(frame, persist=True, conf=0.03, verbose=False)
-            
-            # DEBUG: Check what YOLO returned
-            if frame_idx % 30 == 0:  # Print every 30 frames to avoid spam
-                print(f"[DEBUG] Frame {frame_idx}: results={results is not None}")
-                if results:
-                    print(f"[DEBUG] Frame {frame_idx}: results[0].boxes={results[0].boxes}")
-                    if results[0].boxes is not None:
-                        print(f"[DEBUG] Frame {frame_idx}: Number of boxes={len(results[0].boxes)}")
+            # Run YOLOv8 tracking with OPTIMIZED parameters
+            # conf=0.6: Higher confidence to ignore partial/weak boxes
+            # iou=0.5: Standard NMS threshold
+            # agnostic_nms=True: Prevents multiple boxes on same object even if class differs (though we only have 1 class)
+            # classes=[0]: Ensure we only track "sack" class
+            results = self.model.track(frame, persist=True, conf=0.6, iou=0.5, 
+                                     tracker="bytetrack.yaml", 
+                                     agnostic_nms=True,
+                                     classes=[0],
+                                     verbose=False)
             
             if results and results[0].boxes is not None and len(results[0].boxes) > 0:
                 detection_count += 1
                 boxes = results[0].boxes.xywh.cpu()
                 track_ids = results[0].boxes.id.int().cpu().tolist() if results[0].boxes.id is not None else []
+                confs = results[0].boxes.conf.cpu().tolist()
                 
-                print(f"[DETECTION] Frame {frame_idx}: Found {len(boxes)} boxes, track_ids={track_ids}")
+                # DEBUG: Print detections for tuning
+                if frame_idx % 30 == 0:
+                     print(f"[DEBUG] Frame {frame_idx}: Found {len(boxes)} boxes. Confs: {[f'{c:.2f}' for c in confs]}")
+                boxes = results[0].boxes.xywh.cpu()
+                track_ids = results[0].boxes.id.int().cpu().tolist() if results[0].boxes.id is not None else []
                 
                 # Visualize results on the frame
                 annotated_frame = results[0].plot()
@@ -101,51 +111,51 @@ class JuteBagTracker:
                     # MODE-SPECIFIC COUNTING LOGIC
                     if mode == "static":
                         # Static Mode: Count any new unique bag ID
-                        if track_id not in self.counted_ids:
-                            self.total_count += 1
-                            self.counted_ids.add(track_id)
-                            print(f"Frame {frame_idx}: New bag {track_id} detected! Total: {self.total_count}")
+                        if track_id not in counted_ids:
+                            current_count += 1
+                            counted_ids.add(track_id)
+                            print(f"Frame {frame_idx}: New bag {track_id} detected! Total: {current_count}")
                             
                             if on_update:
                                 try:
-                                    on_update({"count": self.total_count, "frame_idx": frame_idx})
+                                    on_update({"count": current_count, "frame_idx": frame_idx})
                                 except Exception as e:
                                     print(f"Callback error: {e}")
                     
                     elif mode == "conveyor":
                         # Conveyor Mode: Count bags crossing the line
-                        if cy > line_y and track_id not in self.counted_ids:
-                            self.total_count += 1
-                            self.counted_ids.add(track_id)
-                            print(f"Frame {frame_idx}: Bag {track_id} crossed line! Total: {self.total_count}")
+                        if cy > line_y and track_id not in counted_ids:
+                            current_count += 1
+                            counted_ids.add(track_id)
+                            print(f"Frame {frame_idx}: Bag {track_id} crossed line! Total: {current_count}")
                             
                             if on_update:
                                 try:
-                                    on_update({"count": self.total_count, "frame_idx": frame_idx})
+                                    on_update({"count": current_count, "frame_idx": frame_idx})
                                 except Exception as e:
                                     print(f"Callback error: {e}")
                 
                 # Replace frame with annotated one
                 frame = annotated_frame
-            else:
-                # No detections - just pass through original frame
-                if frame_idx % 30 == 0:
-                    print(f"[DEBUG] Frame {frame_idx}: No boxes detected")
 
             # Draw counting info (show line only in conveyor mode)
             if mode == "conveyor":
                 cv2.line(frame, (0, line_y), (width, line_y), (0, 0, 255), 2)
-                cv2.putText(frame, f"Conveyor Count: {self.total_count}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+                cv2.putText(frame, f"Conveyor Count: {current_count}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
             else:
-                cv2.putText(frame, f"Total Bags: {self.total_count}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+                cv2.putText(frame, f"Total Bags: {current_count}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
             out.write(frame)
             frame_idx += 1
 
         cap.release()
         out.release()
-        print(f"Processed video saved to {output_path} | Final Count: {self.total_count} | Frames with detections: {detection_count}/{frame_idx}")
-        return {}
+        
+        # Update global total for stream/persistence if needed, but return local for this video
+        self.total_count += current_count 
+        
+        print(f"Processed video saved to {output_path} | Find Count: {current_count} | Frames with detections: {detection_count}/{frame_idx}")
+        return {"count": current_count, "status": "completed"}
 
     # Generator for future streaming support
     # def process_video_generator(self, video_path, line_y=500):

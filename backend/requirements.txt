@@ -6,6 +6,7 @@ numpy
 torch
 torchvision
 ultralytics  # YOLOv8 for jute bag detection and tracking
+lap>=0.5.12  # Required by ultralytics for tracking
 httpx  # for testing
 requests
 supervision==0.23.0  # Helpful for vision tasks visualization
