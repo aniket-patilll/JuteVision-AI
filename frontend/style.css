@@ -138,6 +138,36 @@ body {
     gap: 1.5rem;
 }
 
+/* Download Sample Button Style (v10.1) */
+.btn-download-sample {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #7fa35f;
+    /* Sage Green from reference image */
+    color: white;
+    padding: 8px 18px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(127, 163, 95, 0.2);
+    margin-right: 15px;
+}
+
+.btn-download-sample:hover {
+    background-color: #6d8c52;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(127, 163, 95, 0.3);
+}
+
+.btn-download-sample svg {
+    flex-shrink: 0;
+}
+
 .system-status {
     display: flex;
     align-items: center;
