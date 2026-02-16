@@ -138,11 +138,11 @@ The system uses a hybrid storage approach to ensure performance and reliability:
 - **Task History**: Permanent records of processing tasks are saved in `backend/data/tasks.json`.
 - **Original Uploads**: Raw files uploaded by users are temporarily kept in `backend/uploads/`.
 
-### Frontend (Client-Side)
-- **Browser LocalStorage**: Used for persistent UI state and fast access:
-    - `recentUploads`: Stores the last 5 task results for the dashboard sidebar.
-    - `analyticsData`: Maintains up to 50 activity log entries for the Analytics tab.
-    - `currentTotalBags`: Tracks the cumulative session count.
+### Frontend (Client-Side Analytics)
+- **Browser LocalStorage**: Primary storage for real-time dashboard persistence:
+    - `analyticsData`: **The main database for the Analytics Tab**. Stores up to 50 processed task logs (Time, Filename, Count, Status).
+    - `currentTotalBags`: Tracks the cumulative session count across page reloads.
+    - `recentUploads`: Manages the history list shown in the dashboard sidebar.
 
 ## 🔄 Real-Time Dashboard Updates
 
