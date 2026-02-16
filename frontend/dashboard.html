@@ -44,227 +44,371 @@
             </div>
         </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <header class="page-header">
-                <h2 style="color:#497A21">Real-Time Monitoring</h2>
-                <div class="actions">
-                    <button class="btn-secondary" id="reset-btn" style="margin-right: 2px;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M23 4v6h-6"></path>
-                            <path d="M1 20v-6h6"></path>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                        Reset
-                    </button>
-                    <button class="btn-secondary">Export Data</button>
-                    <button class="btn-primary" id="upload-btn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                            <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                            <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                        </svg>
-                        Uploads
-                    </button>
-                </div>
-            </header>
-
-            <div class="dashboard-grid">
-                <!-- Live Stream Feed (MJPEG) -->
-                <div class="card video-feed-card">
-                    <div class="card-header">
-                        <h3>Live Feed 01</h3>
-                        <span class="live-badge">LIVE</span>
+        <div class="content-wrapper">
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- How to Use Guide (v9.9) -->
+                <section class="usage-guide">
+                    <div class="usage-guide-header">
+                        <h3>How to Use This Tool</h3>
+                        <p>Simple 4-step process for accurate object detection and industrial tracking.</p>
                     </div>
-                    <div class="video-container">
-                        <!-- MJPEG Stream Source - Default Empty -->
-                        <img src="" alt="Live Camera Feed" class="live-stream-img" id="camera-feed"
-                            style="display: none;">
-                        <div class="camera-placeholder" id="camera-placeholder">
-                            <p>Camera is Disable</p>
+                    <div class="usage-grid">
+                        <div class="usage-card">
+                            <div class="step-number">1</div>
+                            <div class="usage-card-text">
+                                <h4>Define Analysis Mode</h4>
+                                <p>Choose between <strong>Static Mode</strong> for piles, <strong>Scanning Mode</strong>
+                                    for
+                                    dynamic videos, or <strong>Zone Mode</strong> for conveyor belt precision.</p>
+                            </div>
                         </div>
-                        <div class="overlay-ui">
-                            <div class="zone-line"></div>
+                        <div class="usage-card">
+                            <div class="step-number">2</div>
+                            <div class="usage-card-text">
+                                <h4>Upload & Connect</h4>
+                                <p>Click the <strong>Uploads</strong> button to drop your files or connect to your
+                                    <strong>CCTV Live</strong> feed for real-time monitoring.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="usage-card">
+                            <div class="step-number">3</div>
+                            <div class="usage-card-text">
+                                <h4>Real-Time Processing</h4>
+                                <p>Our AI will process your feed instantly to detect, track, and count objects with
+                                    industrial-grade accuracy.</p>
+                            </div>
+                        </div>
+                        <div class="usage-card">
+                            <div class="step-number">4</div>
+                            <div class="usage-card-text">
+                                <h4>Analytics & Reports</h4>
+                                <p>Head to the <strong>Analytics</strong> tab to review historical trends, peak hour
+                                    stats,
+                                    and detailed efficiency reports.</p>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- Camera Toggle Control -->
-                    <div class="camera-controls">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="camera-toggle">
-                            <span class="slider round"></span>
-                        </label>
-                        <span class="toggle-label">Enable Camera</span>
-                    </div>
-                </div>
-
-                <!-- Stats Panel -->
-                <div class="stats-column">
-                    <div class="card stat-card total-count">
-                        <h3 style="color:#497A21">Total Bags</h3>
-                        <div class="stat-value" id="current-count">0</div>
-                        <div class="stat-trend positive">+12% vs last hour</div>
-                    </div>
-
-                    <div class="card upload-status-card" style="margin-top: 20px;">
-                        <h3 style="color:#497A21">Upload Status</h3>
-                        <div class="upload-list" id="upload-list">
-                            <div class="empty-state">No active uploads</div>
-                            <!-- Upload items will be injected here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-
-            <!-- Upload Modal (Hidden by default) -->
-            <div class="modal-backdrop" id="upload-modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>Upload Video for Analysis</h3>
-                        <button class="close-btn" id="close-modal">&times;</button>
-                    </div>
-
-                    <!-- Mode Selection -->
-                    <div class="mode-selection" style="margin-bottom: 2rem;">
-                        <label
-                            style="display: block; margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;">Select
-                            Analysis Mode:</label>
-                        <div class="radio-group" style="display: flex; flex-direction: column; gap: 1rem;">
-
-                            <!-- Static Mode -->
-                            <label class="radio-card">
-                                <input type="radio" name="analysis-mode" value="static" checked>
-                                <div class="card-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                                    </svg>
-                                </div>
-                                <div class="card-text">
-                                    <strong>Static Mode</strong>
-                                    <span>For Piles & Warehouses (Images)</span>
-                                </div>
-                            </label>
-
-                            <!-- Scanning Mode -->
-                            <label class="radio-card">
-                                <input type="radio" name="analysis-mode" value="scanning">
-                                <div class="card-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                                        <line x1="8" y1="21" x2="16" y2="21"></line>
-                                        <line x1="12" y1="17" x2="12" y2="21"></line>
-                                    </svg>
-                                </div>
-                                <div class="card-text">
-                                    <strong>Scanning Mode</strong>
-                                    <span>For Conveyors & Panning (Videos)</span>
-                                </div>
-                            </label>
-
-                            <!-- Live Camera -->
-                            <label class="radio-card">
-                                <input type="radio" name="analysis-mode" value="live">
-                                <div class="card-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M23 7l-7 5 7 5V7z"></path>
-                                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                                    </svg>
-                                </div>
-                                <div class="card-text">
-                                    <strong>CCTV Live</strong>
-                                    <span>Real-time CCTV Feed</span>
-                                </div>
-                            </label>
-
-                        </div>
-                    </div>
-
-                    <div class="drop-zone" id="drop-zone">
-                        <div class="upload-icon">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.5">
+                </section>
+                <header class="page-header">
+                    <h2 style="color:#497A21">Real-Time Monitoring</h2>
+                    <div class="actions">
+                        <button class="btn-secondary" id="reset-btn" style="margin-right: 2px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 4v6h-6"></path>
+                                <path d="M1 20v-6h6"></path>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                            Reset
+                        </button>
+                        <button class="btn-secondary">Export Data</button>
+                        <button class="btn-primary" id="upload-btn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
                                 <path
-                                    d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" />
-                                <path d="M17 8L12 3L7 8" />
-                                <path d="M12 3V15" />
+                                    d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
                             </svg>
-                        </div>
-                        <p>Drag & Drop video here or <span>Browse</span></p>
-                        <input type="file" id="file-input" accept="video/mp4,video/avi" hidden>
-                    </div>
-
-                    <!-- Start Camera Button (Hidden by default) -->
-                    <div id="start-camera-container" style="display: none; text-align: center; padding: 20px;">
-                        <button id="start-camera-btn" class="btn-primary"
-                            style="width: 100%; justify-content: center; padding: 12px;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M23 7l-7 5 7 5V7z"></path>
-                                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                            </svg>
-                            Start CCTV Live
+                            Uploads
                         </button>
                     </div>
+                </header>
+
+
+                <div class="dashboard-grid">
+                    <!-- Live Stream Feed (MJPEG) -->
+                    <div class="card video-feed-card">
+                        <div class="card-header">
+                            <h3>Live Feed 01</h3>
+                            <span class="live-badge">LIVE</span>
+                        </div>
+                        <div class="video-container">
+                            <!-- MJPEG Stream Source - Default Empty -->
+                            <img src="" alt="Live Camera Feed" class="live-stream-img" id="camera-feed"
+                                style="display: none;">
+                            <div class="camera-placeholder" id="camera-placeholder">
+                                <p>Camera is Disable</p>
+                            </div>
+                            <div class="overlay-ui">
+                                <div class="zone-line"></div>
+                            </div>
+                        </div>
+
+                        <!-- Camera Toggle Control -->
+                        <div class="camera-controls">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="camera-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                            <span class="toggle-label">Enable Camera</span>
+                        </div>
+                    </div>
+
+                    <!-- Stats Panel -->
+                    <div class="stats-column">
+                        <div class="card stat-card total-count">
+                            <h3 style="color:#497A21">Total Bags</h3>
+                            <div class="stat-value" id="current-count">0</div>
+                            <div class="stat-trend positive">+12% vs last hour</div>
+                        </div>
+
+                        <!-- Zone Occupancy Stats (Modular) -->
+                        <div id="zone-stats-container" style="display: none;">
+                            <div class="card stat-card" style="margin-top: 10px;">
+                                <h3 style="color:#2196F3">Status In ROI</h3>
+                                <div class="stat-value" id="inside-count">0</div>
+                            </div>
+                        </div>
+
+                        <div class="card upload-status-card" style="margin-top: 20px;">
+                            <h3 style="color:#497A21">Upload Status</h3>
+                            <div class="upload-list" id="upload-list">
+                                <div class="empty-state">No active uploads</div>
+                                <!-- Upload items will be injected here -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-        </main>
-    </div>
 
-    <script type="module" src="script.js"></script>
-    <script>
-        // Toggle File Input Acceptance based on Mode
-        const modeRadios = document.querySelectorAll('input[name="analysis-mode"]');
-        const fileInput = document.getElementById('file-input');
-        const dropZoneText = document.querySelector('.drop-zone p');
+                <!-- Upload Modal (Hidden by default) -->
+                <div class="modal-backdrop" id="upload-modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Upload Video for Analysis</h3>
+                            <button class="close-btn" id="close-modal">&times;</button>
+                        </div>
 
-        function updateInputMode() {
-            const selectedMode = document.querySelector('input[name="analysis-mode"]:checked').value;
-            const dropZone = document.getElementById('drop-zone');
-            const startCameraContainer = document.getElementById('start-camera-container');
+                        <!-- Mode Selection -->
+                        <div class="mode-selection" style="margin-bottom: 2rem;">
+                            <label
+                                style="display: block; margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;">Select
+                                Analysis Mode:</label>
+                            <div class="radio-group" style="display: flex; flex-direction: column; gap: 1rem;">
 
-            if (selectedMode === 'live') {
-                dropZone.style.display = 'none';
-                startCameraContainer.style.display = 'block';
-            } else {
-                dropZone.style.display = 'flex';
-                startCameraContainer.style.display = 'none';
+                                <!-- Static Mode -->
+                                <label class="radio-card">
+                                    <input type="radio" name="analysis-mode" value="static" checked>
+                                    <div class="card-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="card-text">
+                                        <strong>Static Mode</strong>
+                                        <span>For Piles & Warehouses (Images)</span>
+                                    </div>
+                                </label>
 
-                if (selectedMode === 'static') {
-                    fileInput.accept = "image/jpeg,image/png,image/jpg";
-                    dropZoneText.innerHTML = "Drag & Drop <span>Image</span> here or <span>Browse</span>";
+                                <!-- Scanning Mode -->
+                                <label class="radio-card">
+                                    <input type="radio" name="analysis-mode" value="scanning">
+                                    <div class="card-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                                        </svg>
+                                    </div>
+                                    <div class="card-text">
+                                        <strong>Scanning Mode</strong>
+                                        <span>For Dynamic Videos</span>
+                                    </div>
+                                </label>
+
+                                <!-- Live Camera -->
+                                <label class="radio-card">
+                                    <input type="radio" name="analysis-mode" value="live">
+                                    <div class="card-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M23 7l-7 5 7 5V7z"></path>
+                                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                                        </svg>
+                                    </div>
+                                    <div class="card-text">
+                                        <strong>CCTV Live</strong>
+                                        <span>Real-time CCTV Feed</span>
+                                    </div>
+                                </label>
+
+                                <!-- Zone Counting Mode (Modular Redux) -->
+                                <label class="radio-card">
+                                    <input type="radio" name="analysis-mode" value="zone">
+                                    <div class="card-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                            <path d="M3 9h18M9 21V9"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="card-text">
+                                        <strong>Zone Counting Mode</strong>
+                                        <span>For Conveyors</span>
+                                    </div>
+                                </label>
+
+                            </div>
+                        </div>
+
+                        <div class="drop-zone" id="drop-zone">
+                            <div class="upload-icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5">
+                                    <path
+                                        d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" />
+                                    <path d="M17 8L12 3L7 8" />
+                                    <path d="M12 3V15" />
+                                </svg>
+                            </div>
+                            <p>Drag & Drop video here or <span>Browse</span></p>
+                            <input type="file" id="file-input" accept="video/mp4,video/avi" hidden>
+                        </div>
+
+                        <!-- Start Camera Button (Hidden by default) -->
+                        <div id="start-camera-container" style="display: none; text-align: center; padding: 20px;">
+                            <button id="start-camera-btn" class="btn-primary"
+                                style="width: 100%; justify-content: center; padding: 12px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M23 7l-7 5 7 5V7z"></path>
+                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                                </svg>
+                                Start CCTV Live
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <footer class="site-footer">
+                <div class="footer-container">
+                    <div class="footer-left">
+                        <div class="footer-brand">
+                            <img src="assets/thirdeye-logo.png" alt="ThirdEye Logo" class="footer-logo">
+                        </div>
+                        <p class="copyright">©2026. ThirdEye Data. All Rights Reserved.</p>
+                    </div>
+                    <div class="footer-right">
+                        <div class="social-links">
+                            <a href="https://www.linkedin.com/company/thirdeyedata" target="_blank"
+                                rel="noopener noreferrer" class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path
+                                        d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                                </svg>
+                            </a>
+                            <a href="https://x.com/thirdeye_data" target="_blank" rel="noopener noreferrer"
+                                class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path
+                                        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.451-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117l11.966 15.644z" />
+                                </svg>
+                            </a>
+                            <a href="https://www.facebook.com/thirdeyedata" target="_blank" rel="noopener noreferrer"
+                                class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path
+                                        d="M22.675 0h-21.35C.597 0 0 .597 0 1.326v21.348C0 23.403.597 24 1.325 24H12.82v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116c.73 0 1.325-.597 1.325-1.326V1.326C24 .597 23.403 0 22.675 0z" />
+                                </svg>
+                            </a>
+                            <a href="https://www.youtube.com/user/ThirdEyeCSS" target="_blank" rel="noopener noreferrer"
+                                class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path
+                                        d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                                </svg>
+                            </a>
+                            <a href="https://vimeo.com/channels/thirdeyedata" target="_blank" rel="noopener noreferrer"
+                                class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path
+                                        d="M22.396 7.158c-.093 2.026-1.507 4.799-4.245 8.32-2.84 3.65-5.242 5.48-7.208 5.48-1.208 0-2.234-1.112-3.078-3.336-.56-2.056-1.12-4.111-1.68-6.167-.621-2.311-1.284-3.468-1.991-3.468-.155 0-.698.323-1.63 1.054l-.988-1.269c1.026-.901 2.036-1.783 3.024-2.613 1.365-1.144 2.39-1.753 3.078-1.83 1.614-.155 2.607.962 2.98 3.33.403 2.557.683 4.144.839 4.755.373 1.614.776 2.42 1.21 2.42.342 0 .869-.53 1.583-1.583.714-1.055 1.102-1.85 1.165-2.383.155-1.21-.31-1.815-1.396-1.815-.51 0-1.042.115-1.595.348 1.04-3.411 3.024-5.087 5.952-4.996 2.155.064 3.16 1.448 3.012 4.16z" />
+                                </svg>
+                            </a>
+                            <a href="https://medium.com/@thirdeyedata" target="_blank" rel="noopener noreferrer"
+                                class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path
+                                        d="M13.54 12a6.8 6.8 0 0 1-6.77 6.82A6.8 6.8 0 0 1 0 12a6.8 6.8 0 0 1 6.77-6.82A6.8 6.8 0 0 1 13.54 12zm7.42 0c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42zM24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z" />
+                                </svg>
+                            </a>
+                            <a href="https://feeds.feedburner.com/thirdeyedata/rss-feed" target="_blank"
+                                rel="noopener noreferrer" class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path
+                                        d="M6.18,15.64A2.18,2.18,0,1,1,4,13.46,2.18,2.18,0,0,1,6.18,15.64ZM4,5V8.34A10.66,10.66,0,0,1,14.66,19H18A14,14,0,0,0,4,5ZM4,13V15.7A3.3,3.3,0,0,1,6.3,18H9A5,5,0,0,0,4,13Z" />
+                                </svg>
+                            </a>
+                        </div>
+                        <div class="footer-links-row">
+                            <a href="#">Privacy Policy</a>
+                            <span class="link-divider">|</span>
+                            <a href="#">Terms & Conditions</a>
+                            <span class="link-divider">|</span>
+                            <a href="#">Cookies Policy</a>
+                            <span class="link-divider">|</span>
+                            <a href="#">System Status</a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+
+        <script type="module" src="script.js"></script>
+        <script>
+            // Toggle File Input Acceptance based on Mode
+            const modeRadios = document.querySelectorAll('input[name="analysis-mode"]');
+            const fileInput = document.getElementById('file-input');
+            const dropZoneText = document.querySelector('.drop-zone p');
+
+            function updateInputMode() {
+                const selectedMode = document.querySelector('input[name="analysis-mode"]:checked').value;
+                const dropZone = document.getElementById('drop-zone');
+                const startCameraContainer = document.getElementById('start-camera-container');
+
+                if (selectedMode === 'live') {
+                    dropZone.style.display = 'none';
+                    startCameraContainer.style.display = 'block';
                 } else {
-                    fileInput.accept = "video/mp4,video/avi,video/mov";
-                    dropZoneText.innerHTML = "Drag & Drop <span>Video</span> here or <span>Browse</span>";
+                    dropZone.style.display = 'flex';
+                    startCameraContainer.style.display = 'none';
+
+                    if (selectedMode === 'static') {
+                        fileInput.accept = "image/jpeg,image/png,image/jpg";
+                        dropZoneText.innerHTML = "Drag & Drop <span>Image</span> here or <span>Browse</span>";
+                    } else {
+                        fileInput.accept = "video/mp4,video/avi,video/mov";
+                        dropZoneText.innerHTML = "Drag & Drop <span>Video</span> here or <span>Browse</span>";
+                    }
                 }
             }
-        }
 
-        modeRadios.forEach(radio => radio.addEventListener('change', updateInputMode));
+            modeRadios.forEach(radio => radio.addEventListener('change', updateInputMode));
 
-        // Start Camera Logic
-        document.getElementById('start-camera-btn').addEventListener('click', () => {
-            // Close Modal
-            document.getElementById('upload-modal').style.display = 'none';
-            // Enable Camera (trigger the toggle in script.js)
-            const cameraToggle = document.getElementById('camera-toggle');
-            if (cameraToggle && !cameraToggle.checked) {
-                cameraToggle.click();
-            }
-        });
+            // Start Camera Logic
+            document.getElementById('start-camera-btn').addEventListener('click', () => {
+                // Close Modal
+                document.getElementById('upload-modal').style.display = 'none';
+                // Enable Camera (trigger the toggle in script.js)
+                const cameraToggle = document.getElementById('camera-toggle');
+                if (cameraToggle && !cameraToggle.checked) {
+                    cameraToggle.click();
+                }
+            });
 
-        // Initialize on load
-        updateInputMode();
-    </script>
+            // Initialize on load
+            updateInputMode();
+        </script>
 </body>
 
 </html>

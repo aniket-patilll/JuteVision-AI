@@ -7,12 +7,13 @@ An AI-powered system for automated counting of jute bags using YOLOv8 object det
 - **Real-time Jute Bag Detection** - YOLOv8-powered object detection
 - **Tiled Detection (SAHI-lite)** - Accurate counting of small objects in high-res images
 - **Automatic Counting** - Tracks unique bags with persistent IDs
-- **Supabase Authentication** - Secure login with Google OAuth support
+- **High-Density Flow Optimization** - Robust deduplication and ID jump protection for rapid product flow
+- **Supabase Authentication** - Secure login with Google OAuth and Email verification
 - **Video & Image Analysis** - Process warehouse piles or conveyor videos
 - **Live CCTV Streaming** - Real-time MJPEG camera feed integration
 - **WebSocket Updates** - Instant count updates to the dashboard
-- **Analytics Dashboard** - History tracking with CSV data export
-- **Modern Web UI** - Premium design with responsive dashboard and modal uploads
+- **Analytics Dashboard** - Premium glassmorphism UI with detailed logs and CSV export
+- **Modern Web UI** - Fully responsive design with theme-tailored aesthetics
 
 ## 🏗️ Technology Stack
 
@@ -27,7 +28,7 @@ An AI-powered system for automated counting of jute bags using YOLOv8 object det
 - **Vite** - Next-generation build tool
 - **Vanilla JavaScript** - Lightweight and fast
 - **Supabase** - Authentication & Backend-as-a-Service
-- **CSS3** - Modern styling with custom design system
+- **CSS3** - Custom design system with modern components
 
 ## 📋 Prerequisites
 
@@ -96,44 +97,45 @@ CCTV_VisionCount_AI/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py         # FastAPI application
-│   │   ├── tracker.py      # YOLOv8 tracker
-│   │   ├── mock_tracker.py # Mock for testing
+│   │   ├── tracker.py      # YOLOv8 tracker with jump protection
 │   │   └── utils.py
 │   ├── models/
-│   │   └── yolov8m.pt      # YOLOv8 model (download separately)
-│   ├── temp_uploads/       # Processed videos
+│   │   └── yolov8m.pt      # YOLOv8 model
+│   ├── temp_uploads/       # Processed media
 │   └── requirements.txt
 ├── frontend/
-│   ├── index.html
-│   ├── script.js
-│   ├── style.css
-│   └── vite.config.js
+│   ├── index.html          # Landing Page
+│   ├── dashboard.html      # Main Monitoring Interface
+│   ├── analytics.html      # Glassmorphism Data Dashboard
+│   ├── login.html / register.html
+│   ├── auth.js            # Supabase Integration
+│   ├── script.js          # Dashboard Logic & WS
+│   ├── style.css          # Design System
+│   └── assets/            # Brand Assets
 └── README.md
 ```
 
 ## 🔧 Configuration
 
-### Processing Modes
-The system supports two distinct analysis modes, selectable via the UI:
+### Analysis Modes
+The system supports three distinct analysis modes:
 
-1. **Static Mode** (Optimized for Images/Piles)
-   - Uses **Tiled Detection (SAHI-lite)** to scan high-resolution warehouse photos.
-   - Best for counting stationary bags stacked in large piles.
-2. **Scanning Mode** (Optimized for Video/Conveyors)
-   - Uses a **Center Scanning Zone** logic.
-   - Bags are counted only when they enter the designated zone in the center of the frame.
-   - Prevents double-counting in dynamic warehouse scenes.
+1. **Static Mode** (Optimized for Images)
+   - Uses **Tiled Detection (SAHI-lite)** to count stationary bags in high-res warehouse stacks.
+2. **Scanning Mode** (Optimized for Video)
+   - Uses a **Center Scanning Zone** logic for dynamic scenes.
+3. **Zone Counting Mode** (Optimized for Conveyors)
+   - Tracks objects crossing defined boundaries in specialized flow environments.
 
-The **Live Feed** toggle on the dashboard allows for real-time monitoring and counting from connected CCTV sources.
-
+The **Live Feed** toggle on the dashboard allows for real-time monitoring directly from connected CCTV sources.
 
 ## 📊 API Endpoints
 
-- `POST /upload` - Upload video for processing
+- `POST /upload` - Upload video/image for processing
 - `GET /tasks/{task_id}` - Get processing status
 - `GET /stream` - MJPEG live camera stream
 - `WS /ws` - WebSocket for real-time updates
-- `GET /download/{filename}` - Download processed video
+- `POST /reset` - Reset current session data
 
 ## 🤝 Contributing
 

@@ -50,7 +50,7 @@ class JuteBagTracker:
         else:
             return "cpu"
 
-    def detect_with_tiling(self, frame):
+    def detect_with_tiling(self, frame, strict=False):
         """
         Performs inference using tiling (SAHI-lite) to detect small objects.
         Splits frame into overlapping tiles + full frame, then merges results with NMS.
@@ -113,9 +113,11 @@ class JuteBagTracker:
                 pass # Fallback to original if enhancement fails
             
             # Run Inference
-            # Conf 0.15: Catch faint bags (Recall++). TTA (augment=True) helps robustness.
-            # IoU 0.60: Allow more overlap for piles.
-            results = self.model.predict(tile_img, conf=0.15, iou=0.60, augment=True, verbose=False)
+            # v8.1 Balanced Accuracy:
+            # - Static Mode (strict=False): High Recall (0.15) for dense piles.
+            # - Strict Mode (strict=True): High Precision (0.45) for conveyors/trucks.
+            conf_val = 0.45 if strict else 0.15
+            results = self.model.predict(tile_img, conf=conf_val, iou=0.60, augment=True, classes=[0], verbose=False)
             
             if results and len(results[0].boxes) > 0:
                 boxes = results[0].boxes.xyxy.cpu().numpy() # Use xyxy for easy offsetting
@@ -139,9 +141,53 @@ class JuteBagTracker:
         all_cls = torch.tensor(np.concatenate(all_cls))
         
         # Apply NMS (Non-Maximum Suppression)
-        keep_indices = torch.ops.torchvision.nms(all_boxes, all_confs, 0.45)
+        # strict=True: 0.30 (Aggressive anti-ghosting)
+        # strict=False: 0.20 (Absolute suppression for dense piles) - v8.3
+        nms_thresh = 0.30 if strict else 0.20
+        keep_indices = torch.ops.torchvision.nms(all_boxes, all_confs, nms_thresh)
         
         final_boxes = all_boxes[keep_indices]
+        final_confs = all_confs[keep_indices]
+        
+        # --- PROXIMITY-BASED CENTROID DEDUP (v8.3) ---
+        # Even with NMS, some boxes vary slightly in coordinates. 
+        # We merge boxes whose centers are within 15 pixels.
+        deduped_boxes = []
+        deduped_confs = []
+        
+        if len(final_boxes) > 0:
+            boxes_np = final_boxes.cpu().numpy()
+            confs_np = final_confs.cpu().numpy()
+            
+            used_mask = np.zeros(len(boxes_np), dtype=bool)
+            
+            for i in range(len(boxes_np)):
+                if used_mask[i]: continue
+                
+                b1 = boxes_np[i]
+                c1_x, c1_y = (b1[0] + b1[2]) / 2, (b1[1] + b1[3]) / 2
+                
+                # Compare against all subsequent boxes
+                for j in range(i + 1, len(boxes_np)):
+                    if used_mask[j]: continue
+                    
+                    b2 = boxes_np[j]
+                    c2_x, c2_y = (b2[0] + b2[2]) / 2, (b2[1] + b2[3]) / 2
+                    
+                    # Euclidean distance between centroids
+                    dist = np.sqrt((c1_x - c2_x)**2 + (c1_y - c2_y)**2)
+                    
+                    # 15px Threshold: Absolute zero-double counting guard
+                    if dist < 15:
+                        used_mask[j] = True # Suppress the lower-confidence duplicate
+                
+                deduped_boxes.append(torch.tensor(b1))
+                deduped_confs.append(torch.tensor(confs_np[i]))
+        
+        if not deduped_boxes:
+             return torch.empty((0, 4)), []
+             
+        final_boxes = torch.stack(deduped_boxes)
         
         # --- GEOMETRIC & POSITION FILTERING (Remove Walls/Noise) ---
         valid_boxes = []
@@ -164,22 +210,38 @@ class JuteBagTracker:
             is_large = area > frame_area * 0.35 
             is_tiny = area < frame_area * 0.0005
             
-            # 2. Shape: Bags are generally "squarish" (0.5 to 2.5). 
-            bad_ar = (aspect_ratio < 0.4) or (aspect_ratio > 3.0)
+            # 2. Shape: Bags are strictly "horizontal/squarish" (0.8 to 2.5). 
+            bad_ar = (aspect_ratio < 0.8) or (aspect_ratio > 3.0)
             
-            # 3. Position: Reject detections in the top 5% (Ceiling) - relaxed from 15%
+            # 3. Position: Top 5% Ceiling rejection
             is_high = cy < (height * 0.05)
             
-            # 4. EDGE EXCLUSION: Walls usually touch the edges. Bags are in the middle.
-            # DISABLED for Static Mode/Tiling because bags often touch tile edges and image edges in full piles.
-            # touches_edge = (x1 < 5) or (y1 < 5) or (x2 > width - 5)
-            touches_edge = False 
+            # --- v8.1 BALANCED INDUSTRIAL FILTERS ---
             
-            # 5. VERTICAL WALL FILTER: Reject objects that are "Tall" (height > 50% of screen)
-            # Relaxed for vertical piles
-            is_tall = h > (height * 0.50)
+            # 4. EDGE EXCLUSION MARGINS (v8.4 Balanced)
+            # - Strict: 10% (Truck Frame Rejection)
+            # - Static: 1% (Allow bags almost to the very edge)
+            margin_pct = 0.10 if strict else 0.01
+            margin_x = width * margin_pct
+            margin_y = height * margin_pct
+            is_at_edge = (cx < margin_x) or (cx > width - margin_x) or (cy < margin_y)
+            
+            # 5. HARD GROUND CUT (v8.1 Balanced)
+            # - Strict: 80% (Zero floor noise)
+            # - Static: Relaxed, use generic ground filter if at bottom
+            is_ground = (y2 > height * 0.80) if strict else (y2 > height * 0.90 and aspect_ratio > 2.5)
+            
+            # 6. MACRO-NOISE REJECTION (v8.4): No sack is > 45% of screen size in Static
+            # Foreground warehouse bags can be massive.
+            size_limit = 0.25 if strict else 0.45
+            is_too_big = (w > width * size_limit) or (h > height * size_limit)
+            
+            # 7. TRUCK WALL / PILLAR (Tall & touching side)
+            # v8.4: Disable wall filter for static mode to allow edge detections
+            touches_side = (x1 < 10) or (x2 > width - 10)
+            is_wall = strict and touches_side and (h > height * 0.25)
 
-            if not (is_large or is_tiny or bad_ar or is_high or touches_edge or is_tall):
+            if not (is_large or is_tiny or bad_ar or is_high or is_at_edge or is_ground or is_too_big or is_wall):
                 valid_boxes.append(box)
                 
         if len(valid_boxes) > 0:
@@ -309,7 +371,8 @@ class JuteBagTracker:
             if mode == "static":
                 # --- STATIC MODE: Tiled Detection (SAHI-lite) ---
                 # 1. Detect using tiles
-                final_boxes, _ = self.detect_with_tiling(frame)
+                # v8.1: Using balanced (strict=False) for static video piles
+                final_boxes, _ = self.detect_with_tiling(frame, strict=False)
                 
                 # 2. Update Count (Use High-Water Mark approach for piles)
                 # We assume the user is showing the *same* pile, so the best frame is the one with MOST bags.
@@ -437,8 +500,8 @@ class JuteBagTracker:
         annotated_frame = frame.copy()
         
         # Run Tiled Detection (Best for static piles)
-        # Using detect_with_tiling from video processing logic
-        final_boxes, _ = self.detect_with_tiling(frame)
+        # v8.1: Using balanced (strict=False) for static image piles
+        final_boxes, _ = self.detect_with_tiling(frame, strict=False)
         
         count = len(final_boxes)
         

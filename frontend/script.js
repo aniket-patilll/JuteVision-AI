@@ -308,10 +308,28 @@ document.addEventListener('DOMContentLoaded', () => {
         cameraToggle.addEventListener('change', updateCameraState);
     } else {
         console.error("Camera elements not found in DOM");
-        // Fallback check if elements exist but DOMContentLoaded fired before this script (shouldn't happen with module)
-        const toggle = document.getElementById('camera-toggle');
-        if (toggle) console.log("Elements found on second check");
     }
+
+    // --- MODULAR MODE SWITCHING (v5) ---
+    const modeRadios = document.querySelectorAll('input[name="analysis-mode"]');
+    const totalBagsCard = document.querySelector('.total-count');
+    const zoneStatsContainer = document.getElementById('zone-stats-container');
+
+    function updateModeUI() {
+        const selectedMode = document.querySelector('input[name="analysis-mode"]:checked').value;
+        console.log("Mode switched to:", selectedMode);
+
+        if (selectedMode === 'zone') {
+            if (totalBagsCard) totalBagsCard.style.display = 'none';
+            if (zoneStatsContainer) zoneStatsContainer.style.display = 'block';
+        } else {
+            if (totalBagsCard) totalBagsCard.style.display = 'block';
+            if (zoneStatsContainer) zoneStatsContainer.style.display = 'none';
+        }
+    }
+
+    modeRadios.forEach(radio => radio.addEventListener('change', updateModeUI));
+    updateModeUI(); // Initial check
 });
 
 
@@ -342,12 +360,14 @@ socket.onmessage = (event) => {
             cameraPlaceholder.style.display = 'none';
         }
 
+        // 'data.count' in a frame message is the LIVE ROI Occupancy (Sacks in ROI)
         if (data.count !== undefined) {
-            updateCount(data.count);
+            updateROIStatus(data.count);
         }
     }
+    // 'data.count' in a global message is the cumulative session total
     else if (data.count !== undefined) {
-        updateCount(data.count);
+        updateTotalCount(data.count);
     }
 };
 
@@ -356,18 +376,30 @@ socket.onclose = () => {
     console.log("WebSocket disconnected");
 };
 
-function updateCount(newCount) {
+// Update the "Total Bags" card (Session Cumulative)
+function updateTotalCount(newCount) {
     const countElement = document.getElementById('current-count');
+    if (!countElement) return;
+
+    const currentTotal = parseInt(countElement.textContent) || 0;
 
     // Only animate if count increased
-    if (parseInt(countElement.textContent) < newCount) {
-        // Trigger Animation
+    if (currentTotal < newCount) {
         countElement.classList.remove('pulse-animation');
         void countElement.offsetWidth; // Trigger reflow
         countElement.classList.add('pulse-animation');
     }
 
     countElement.textContent = newCount;
+    localStorage.setItem('currentTotalBags', newCount);
+}
+
+// Update the "Status In ROI" card (Live Occupancy)
+function updateROIStatus(occupancy) {
+    const insideCountElement = document.getElementById('inside-count');
+    if (insideCountElement) {
+        insideCountElement.textContent = occupancy;
+    }
 }
 
 
@@ -468,6 +500,10 @@ if (resetBtn) {
 function resetUI() {
     // Reset Total Count
     updateCount(0);
+
+    // Reset Zone Stats (Modular)
+    const insideCount = document.getElementById('inside-count');
+    if (insideCount) insideCount.textContent = '0';
 
     // Clear Analytics Table
     const tableBody = document.getElementById('analytics-table-body');

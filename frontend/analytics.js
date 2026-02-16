@@ -13,6 +13,16 @@ if (logoutBtn) {
     });
 }
 
+function updateDate() {
+    const dateElement = document.getElementById('current-date');
+    if (dateElement) {
+        const now = new Date();
+        const options = { month: 'short', day: 'numeric', year: 'numeric' };
+        const dateString = now.toLocaleDateString('en-US', options);
+        dateElement.textContent = `Today: ${dateString}`;
+    }
+}
+
 // Global State
 const state = {
     allData: [],
@@ -31,6 +41,9 @@ const colors = {
 // Initialize Dashboard
 function initDashboard() {
     loadAnalyticsData();
+    updateDate();
+    // Update date every minute to keep it "real-time"
+    setInterval(updateDate, 60000);
 
     // Listen for filter changes
     const filterSelect = document.getElementById('file-filter');
@@ -289,15 +302,54 @@ function updateGlobalStats(data) {
     const avgBags = totalUploads > 0 ? Math.round(totalBags / totalUploads) : 0;
     const successRate = totalUploads > 0 ? Math.round((successCount / totalUploads) * 100) : 100;
 
+    // v9.5 Calculate Peak Hour (Hour with most bags)
+    const hourlyCounts = new Array(24).fill(0);
+    data.forEach(item => {
+        if (item.time && item.count) {
+            const hour = parseInt(item.time.split(':')[0]);
+            if (!isNaN(hour)) hourlyCounts[hour] += (parseInt(item.count) || 0);
+        }
+    });
+
+    let peakHour = 0;
+    let maxBags = -1;
+    hourlyCounts.forEach((count, hour) => {
+        if (count > maxBags) {
+            maxBags = count;
+            peakHour = hour;
+        }
+    });
+
+    const peakTimeString = maxBags > 0 ? `${peakHour.toString().padStart(2, '0')}:00` : '--:--';
+
     // Update DOM
     if (document.getElementById('metric-uploads'))
         document.getElementById('metric-uploads').textContent = totalUploads;
+
+    if (document.getElementById('metric-total-bags'))
+        document.getElementById('metric-total-bags').textContent = totalBags;
 
     if (document.getElementById('metric-avg'))
         document.getElementById('metric-avg').textContent = avgBags;
 
     if (document.getElementById('metric-success'))
         document.getElementById('metric-success').textContent = `${successRate}%`;
+
+    if (document.getElementById('metric-peak'))
+        document.getElementById('metric-peak').textContent = peakTimeString;
+
+    // Visibility Logic
+    const filterSelect = document.getElementById('file-filter');
+    const filterValue = filterSelect ? filterSelect.value : 'all';
+    const isShowingAll = filterValue === 'all';
+
+    const cardTotalBags = document.getElementById('card-total-bags');
+    const cardAvg = document.getElementById('card-avg');
+    const cardSuccess = document.getElementById('card-success');
+
+    if (cardTotalBags) cardTotalBags.style.display = 'flex'; // Always visible as per user request
+    if (cardAvg) cardAvg.style.display = isShowingAll ? 'flex' : 'none';
+    if (cardSuccess) cardSuccess.style.display = isShowingAll ? 'flex' : 'none';
 }
 
 
@@ -449,11 +501,17 @@ function initWeeklyChart(data) {
         data.forEach(item => totalBags += (parseInt(item.count) || 0));
     }
 
-    // Historical Mock Data (Mon-Fri) + Dynamic "Today" (Sat)
-    // If no data, show empty chart or defaults
-    const historical = [120, 150, 180, 200, 160];
-    const today = totalBags;
-    const tomorrow = 0; // Future
+    // v9.6 Dynamic Day Alignment (Monday = 0, Sunday = 6)
+    const todayIndex = (new Date().getDay() + 6) % 7;
+
+    // Historical Mock Data (Mon-Sun)
+    const historical = [120, 150, 180, 200, 160, 210, 0];
+
+    // Replace today's slot with real data
+    historical[todayIndex] = totalBags;
+
+    // Clear future slots
+    for (let i = todayIndex + 1; i < 7; i++) historical[i] = 0;
 
     // Destroy existing
     const existing = Chart.getChart(ctx);
@@ -465,9 +523,11 @@ function initWeeklyChart(data) {
             labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
             datasets: [{
                 label: 'Bags',
-                data: [...historical, today, tomorrow],
-                backgroundColor: colors.brandGreenLight,
-                hoverBackgroundColor: colors.brandGreen,
+                data: historical,
+                backgroundColor: (context) => {
+                    const index = context.dataIndex;
+                    return index === todayIndex ? colors.brandGreen : colors.brandGreenLight;
+                },
                 borderRadius: 4,
                 borderWidth: 0
             }]
@@ -579,11 +639,13 @@ function initHeatmap(data) {
             cell.className = 'heatmap-cell';
 
             let intensity = 0;
-            // Use real data index 5 (Sat)
-            if (index === 5 && hasData) {
+            // v9.6 Use current system day for real data
+            const todayIndex = (new Date().getDay() + 6) % 7;
+
+            if (index === todayIndex && hasData) {
                 // Normalize: max activity = 1.0 (e.g. 5 uploads/hour)
                 intensity = Math.min(hourlyActivity[h] / 5, 1.0);
-            } else if (hasData) {
+            } else if (hasData && index < todayIndex) {
                 // Background noise for other days if data exists
                 if (h >= 9 && h <= 17) intensity = Math.random() * 0.3;
             }

@@ -10,14 +10,16 @@ import uuid
 import json
 import asyncio
 from .tracker import JuteBagTracker
+from .zone_tracker import ModularZoneTracker
 
-# Global tracker placeholder
+# Global tracker placeholders
 tracker = None
+zone_tracker = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load the ML model on startup
-    global tracker
+    global tracker, zone_tracker
     
     use_mock = os.getenv("USE_MOCK_TRACKER", "false").lower() == "true"
     
@@ -29,11 +31,13 @@ async def lifespan(app: FastAPI):
         print("Initializing JuteBagTracker...")
         try:
             tracker = JuteBagTracker()
+            zone_tracker = ModularZoneTracker()
         except Exception as e:
             print(f"Failed to initialize Real Tracker: {e}")
             print("Falling back to MOCK MODE due to initialization failure.")
             from .mock_tracker import MockJuteBagTracker
             tracker = MockJuteBagTracker()
+            zone_tracker = MockJuteBagTracker() # Reuse for simplicity
             
     yield
     # Clean up on shutdown if needed
@@ -87,17 +91,40 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-# In-memory task store
+# --- GLOBAL STATE ---
 tasks = {}
-TEMP_DIR = "backend/temp_uploads" # Use the correct path relative to root if running from root
 # Directories
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DETECTION_DIR = os.path.join(BASE_DIR, "detections")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads") # New upload directory
+DATA_DIR = os.path.join(BASE_DIR, "data") # Directory for persistent data
+TASK_FILE = os.path.join(DATA_DIR, "tasks.json")
+
+def load_tasks():
+    global tasks
+    if os.path.exists(TASK_FILE):
+        try:
+            with open(TASK_FILE, "r") as f:
+                tasks = json.load(f)
+        except Exception as e:
+            print(f"Error loading tasks: {e}")
+            tasks = {} # Reset tasks if loading fails
+
+def save_tasks():
+    try:
+        with open(TASK_FILE, "w") as f:
+            json.dump(tasks, f, indent=4)
+    except Exception as e:
+        print(f"Error saving tasks: {e}")
 
 # Ensure directories exist
 os.makedirs(DETECTION_DIR, exist_ok=True)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True) # Ensure data directory exists
+
+load_tasks() # Initialize on startup
+TEMP_DIR = "backend/temp_uploads" # Use the correct path relative to root if running from root
+
 
 # Mount static files for video download (Now points to detections folder)
 app.mount("/download", StaticFiles(directory=DETECTION_DIR), name="download")
@@ -106,44 +133,63 @@ def process_video_task(task_id: str, video_path: str, mode: str = "static"):
     """
     Background task to process video and update status.
     """
-    global tracker
-    if not tracker:
-        print("Tracker not initialized!")
+    global tracker, zone_tracker
+    if not tracker or (mode == "zone" and not zone_tracker):
+        print("Tracker(s) not initialized!")
         tasks[task_id] = {"status": "failed", "error": "Tracker not initialized"}
+        save_tasks()
         return
 
     print(f"Starting task {task_id} for {video_path} in mode {mode}")
     
-    # Callback for real-time updates
+    # Callback for real-time updates with persistence
     def safe_broadcast(data: dict):
-        asyncio.run(manager.broadcast(data))
-
-    # Simplified Async Wrapper for the callback if running in thread
-    def safe_broadcast(data: dict):
-        asyncio.run(manager.broadcast(data))
-
+        # Update persistent task store if progress/count is available
+        if task_id in tasks:
+            if "progress" in data:
+                tasks[task_id]["progress"] = data["progress"]
+            if "count" in data:
+                tasks[task_id]["results_count"] = data["count"]
+            save_tasks()
+        
+        try:
+            asyncio.run(manager.broadcast(data))
+        except:
+            pass
+        
     try:
         # Save output to detections folder with a clean name
         output_filename = f"detected_{task_id}.mp4"
         output_video_path = os.path.join(DETECTION_DIR, output_filename)
         
         # Run tracking and save video with callback
-        # Default to "static" mode for warehouse videos (counts all unique bags)
-        # Use "conveyor" mode for moving belt scenarios
-        results = tracker.process_video(video_path, output_video_path, mode=mode, on_update=safe_broadcast)
+        # v5: Modular Choice between Tracking types
+        if mode == "zone":
+            zone_tracker.reset_state() # v10.6 Fix: Prevent count leakage across videos
+            results = zone_tracker.process_video(video_path, output_video_path, on_update=safe_broadcast)
+        else:
+            tracker.reset_state() # v10.6 Fix: Standardize reset for all modes
+            results = tracker.process_video(video_path, output_video_path, mode=mode, on_update=safe_broadcast)
         
         # Results now contains the count directly from the tracker
         final_count = results.get("count", 0)
+        cumulative_total = results.get("total_count", 0) if mode == "zone" else 0
+        
+        # v8.6 reporting: Use cumulative total for upload status list
+        reported_count = cumulative_total if mode == "zone" else final_count
         
         # Force a final broadcast of the global total to ensure UI is in sync
-        safe_broadcast({"count": tracker.total_count})
+        # v13.0 Precision Fix: Broadcast ONLY the current task's count.
+        # This prevents the Summation Bug (6 bag bug)
+        safe_broadcast({"count": reported_count})
         
         tasks[task_id] = {
             "status": "completed",
-            "count": final_count,
-            "results_count": final_count, # results_count is redundant but kept for compatibility
+            "count": reported_count,
+            "results_count": reported_count,
             "video_url": f"/download/{output_filename}"
         }
+        save_tasks()
         
         # Optional: Clean up input file after processing
         # if os.path.exists(video_path):
@@ -152,6 +198,7 @@ def process_video_task(task_id: str, video_path: str, mode: str = "static"):
     except Exception as e:
         print(f"Task {task_id} failed: {e}")
         tasks[task_id] = {"status": "failed", "error": str(e)}
+        save_tasks()
         
     except Exception as e:
         print(f"Task {task_id} failed: {e}")
@@ -164,6 +211,7 @@ def process_image_task(task_id: str, image_path: str):
     global tracker
     if not tracker:
         tasks[task_id] = {"status": "failed", "error": "Tracker not initialized"}
+        save_tasks()
         return
 
     print(f"Starting image task {task_id} for {image_path}")
@@ -183,13 +231,13 @@ def process_image_task(task_id: str, image_path: str):
         results["video_url"] = f"/download/{output_filename}" # Frontend expects video_url for display
         results["is_image"] = True # Flag for frontend
         tasks[task_id] = results
-        
-        # Broadcast update
+        save_tasks()
         asyncio.run(manager.broadcast({"count": tracker.total_count}))
         
     except Exception as e:
         print(f"Task {task_id} failed: {e}")
         tasks[task_id] = {"status": "failed", "error": str(e)}
+        save_tasks()
 
 @app.post("/upload")
 async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = Form("static")):
@@ -215,8 +263,16 @@ async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File
     if mode == "scanning" and is_image:
         return JSONResponse(status_code=400, content={"message": "Scanning Mode supports VIDEOS only. Please upload a video."})
 
+    if mode == "zone" and is_image:
+        return JSONResponse(status_code=400, content={"message": "Zone Mode supports VIDEOS only. Please upload a video."})
+
+    # v13.0 Critical Reset: Standardize clean slate for ALL trackers
+    if tracker: tracker.reset_state()
+    if zone_tracker: zone_tracker.reset_state()
+    
     # Initial task status
-    tasks[task_id] = {"status": "processing", "file": file.filename, "mode": mode}
+    tasks[task_id] = {"status": "processing", "progress": 0, "file": file.filename, "mode": mode}
+    save_tasks()
     
     # Start background processing
     if is_image:
@@ -229,11 +285,17 @@ async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File
 @app.post("/reset")
 async def reset_session():
     """Resets the session count and history."""
-    global tracker
+    global tracker, zone_tracker
     if tracker:
         tracker.reset_state()
-        # Broadcast reset to all clients
-        await manager.broadcast({"count": 0, "event": "reset"})
+    if zone_tracker:
+        try:
+            zone_tracker.reset_state()
+        except Exception as e:
+            print(f"Zone reset failed: {e}")
+            
+    # Broadcast reset to all clients
+    await manager.broadcast({"count": 0, "event": "reset"})
     return {"message": "Session reset successfully", "count": 0}
 
 @app.get("/tasks/{task_id}")
