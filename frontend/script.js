@@ -319,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedMode = document.querySelector('input[name="analysis-mode"]:checked').value;
         console.log("Mode switched to:", selectedMode);
 
-        if (selectedMode === 'zone') {
+        if (selectedMode === 'zone' || selectedMode === 'conveyor') {
             if (totalBagsCard) totalBagsCard.style.display = 'none';
             if (zoneStatsContainer) zoneStatsContainer.style.display = 'block';
         } else {
@@ -630,6 +630,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Sample Data Store
     const sampleData = {
+        conveyor: [
+            { name: "Conveyor Sample Video", type: "video", url: "assets/samples/conveyor_1.mp4", thumb: "assets/samples/conveyor_thumb.jpg" }
+        ],
         static: [
             { name: "01_Jute_Stack_Truck", type: "image", url: "assets/samples/static_1.jpg", thumb: "assets/samples/static_1.jpg" },
             { name: "02_Jute_Bags_CloseUp", type: "image", url: "assets/samples/static_2.jpg", thumb: "assets/samples/static_2.jpg" },
@@ -670,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const mode = item.getAttribute('data-mode');
             const modeTitle = item.textContent.trim();
 
-            if (mode === 'static' || mode === 'scanning' || mode === 'zone') {
+            if (mode === 'static' || mode === 'scanning' || mode === 'zone' || mode === 'conveyor') {
                 downloadModeZip(mode);
             } else {
                 openSampleModal(mode, modeTitle);

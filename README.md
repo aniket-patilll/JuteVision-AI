@@ -6,7 +6,7 @@ An AI-powered system for automated counting of jute bags using YOLOv8 object det
 
 - **Real-time Jute Bag Detection** - YOLOv8-powered object detection with custom fine-tuned weights
 - **Tiled Detection (SAHI-lite)** - Optimized for high-resolution static warehouse pile images
-- **Dynamic Analysis Modes** - Specialized logic for **Static**, **Scanning** (center-zone), and **Zone** (conveyor) processing
+- **Dynamic Analysis Modes** - Specialized logic for **Conveyor**, **Static**, **Scanning**, and **Zone** processing
 - **Download Sample Feature** - Instant ZIP download of high-quality sample videos and images for each analysis mode
 - **High-Density Flow Optimization** - Enhanced deduplication and ID jump protection for rapid product streams
 - **Supabase Authentication** - Secure login system with Email verification
@@ -98,7 +98,7 @@ CCTV_VisionCount_AI/
 │   ├── app/
 │   │   ├── main.py             # FastAPI backend server
 │   │   ├── tracker.py          # YOLOv8 tracker with high-density logic
-│   │   └── zone_tracker.py     # specialized logic for conveyor counting
+│   │   ├── zone_tracker.py     # ROI tracking for Conveyor and custom Zone modes
 │   ├── models/
 │   │   ├── yolov8n.pt          # Base YOLOv8 model
 │   │   └── sacks_custom.pt     # Fine-tuned weights for jute bags
@@ -122,14 +122,16 @@ CCTV_VisionCount_AI/
 ## 🔧 Configuration
 
 ### Analysis Modes
-The system supports three distinct analysis modes:
+The system supports four distinct analysis modes:
 
-1. **Static Mode** (Optimized for Images)
+1. **Conveyor Mode** (Optimized for Industrial Belts)
+   - High-precision tracking for standard conveyor systems with optimized ROI logic.
+2. **Static Mode** (Optimized for Images)
    - Uses **Tiled Detection (SAHI-lite)** to count stationary bags in high-res warehouse stacks.
-2. **Scanning Mode** (Optimized for Video)
+3. **Scanning Mode** (Optimized for Video)
    - Uses a **Center Scanning Zone** logic for dynamic scenes.
-3. **Zone Counting Mode** (Optimized for Conveyors)
-   - Tracks objects crossing defined boundaries in specialized flow environments.
+4. **Zone Counting Mode** (Optimized for Custom Areas)
+   - Tracks objects crossing defined boundaries in specialized flow environments with custom ROI definitions.
 
 The **Live Feed** toggle on the dashboard allows for real-time monitoring directly from connected CCTV sources.
 

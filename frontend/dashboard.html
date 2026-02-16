@@ -42,6 +42,15 @@
                         <span>Download Sample</span>
                     </a>
                     <div class="dropdown-menu" id="download-dropdown">
+                        <a href="#" class="dropdown-item" data-mode="conveyor">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M12 11v11"></path>
+                            </svg>
+                            Conveyor Mode
+                        </a>
                         <a href="#" class="dropdown-item" data-mode="static">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
@@ -97,9 +106,9 @@
                             <div class="step-number">1</div>
                             <div class="usage-card-text">
                                 <h4>Define Analysis Mode</h4>
-                                <p>Choose between <strong>Static Mode</strong> for piles, <strong>Scanning Mode</strong>
-                                    for
-                                    dynamic videos, or <strong>Zone Mode</strong> for conveyor belt precision.</p>
+                                <p>Choose between <strong>Conveyor Mode</strong> for belt precision, <strong>Static
+                                        Mode</strong> for piles, <strong>Scanning Mode</strong> for dynamic videos, or
+                                    <strong>Zone Mode</strong> for custom ROI Areas.</p>
                             </div>
                         </div>
                         <div class="usage-card">
@@ -231,10 +240,26 @@
                                 style="display: block; margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;">Select
                                 Analysis Mode:</label>
                             <div class="radio-group" style="display: flex; flex-direction: column; gap: 1rem;">
+                                <!-- Conveyor Mode -->
+                                <label class="radio-card">
+                                    <input type="radio" name="analysis-mode" value="conveyor" checked>
+                                    <div class="card-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                            <path d="M12 11v11"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="card-text">
+                                        <strong>Conveyor Mode</strong>
+                                        <span>For Standard Conveyor Systems</span>
+                                    </div>
+                                </label>
 
                                 <!-- Static Mode -->
                                 <label class="radio-card">
-                                    <input type="radio" name="analysis-mode" value="static" checked>
+                                    <input type="radio" name="analysis-mode" value="static">
                                     <div class="card-icon">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                                             stroke="currentColor" stroke-width="2">
@@ -292,7 +317,7 @@
                                     </div>
                                     <div class="card-text">
                                         <strong>Zone Counting Mode</strong>
-                                        <span>For Conveyors</span>
+                                        <span>For Custom ROI Areas</span>
                                     </div>
                                 </label>
 
@@ -442,7 +467,7 @@
                     if (selectedMode === 'static') {
                         fileInput.accept = "image/jpeg,image/png,image/jpg";
                         dropZoneText.innerHTML = "Drag & Drop <span>Image</span> here or <span>Browse</span>";
-                    } else {
+                    } else if (selectedMode === 'conveyor' || selectedMode === 'scanning' || selectedMode === 'zone') {
                         fileInput.accept = "video/mp4,video/avi,video/mov";
                         dropZoneText.innerHTML = "Drag & Drop <span>Video</span> here or <span>Browse</span>";
                     }

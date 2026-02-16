@@ -134,7 +134,7 @@ def process_video_task(task_id: str, video_path: str, mode: str = "static"):
     Background task to process video and update status.
     """
     global tracker, zone_tracker
-    if not tracker or (mode == "zone" and not zone_tracker):
+    if not tracker or ((mode == "zone" or mode == "conveyor") and not zone_tracker):
         print("Tracker(s) not initialized!")
         tasks[task_id] = {"status": "failed", "error": "Tracker not initialized"}
         save_tasks()
@@ -164,7 +164,7 @@ def process_video_task(task_id: str, video_path: str, mode: str = "static"):
         
         # Run tracking and save video with callback
         # v5: Modular Choice between Tracking types
-        if mode == "zone":
+        if mode == "zone" or mode == "conveyor":
             zone_tracker.reset_state() # v10.6 Fix: Prevent count leakage across videos
             results = zone_tracker.process_video(video_path, output_video_path, on_update=safe_broadcast)
         else:
@@ -173,10 +173,10 @@ def process_video_task(task_id: str, video_path: str, mode: str = "static"):
         
         # Results now contains the count directly from the tracker
         final_count = results.get("count", 0)
-        cumulative_total = results.get("total_count", 0) if mode == "zone" else 0
+        cumulative_total = results.get("total_count", 0) if (mode == "zone" or mode == "conveyor") else 0
         
         # v8.6 reporting: Use cumulative total for upload status list
-        reported_count = cumulative_total if mode == "zone" else final_count
+        reported_count = cumulative_total if (mode == "zone" or mode == "conveyor") else final_count
         
         # Force a final broadcast of the global total to ensure UI is in sync
         # v13.0 Precision Fix: Broadcast ONLY the current task's count.
@@ -263,7 +263,7 @@ async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File
     if mode == "scanning" and is_image:
         return JSONResponse(status_code=400, content={"message": "Scanning Mode supports VIDEOS only. Please upload a video."})
 
-    if mode == "zone" and is_image:
+    if (mode == "zone" or mode == "conveyor") and is_image:
         return JSONResponse(status_code=400, content={"message": "Zone Mode supports VIDEOS only. Please upload a video."})
 
     # v13.0 Critical Reset: Standardize clean slate for ALL trackers
