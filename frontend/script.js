@@ -450,23 +450,27 @@ function updateGlobalStats() {
 }
 
 // Export Data
-const exportBtn = document.querySelector('.btn-secondary'); // "Export Data" button
+const exportBtn = document.getElementById('export-btn');
 if (exportBtn) {
     exportBtn.addEventListener('click', () => {
-        const tableBody = document.getElementById('analytics-table-body');
-        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        // Get data from localStorage
+        const storedData = localStorage.getItem('analyticsData');
+        if (!storedData) {
+            alert("No data to export");
+            return;
+        }
+
+        const analyticsData = JSON.parse(storedData);
+        if (analyticsData.length === 0) {
+            alert("No data to export");
+            return;
+        }
 
         // CSV Header
         let csvContent = "data:text/csv;charset=utf-8,Time,File,Count,Status\n";
 
-        rows.forEach(row => {
-            // Skip empty state
-            if (row.cells.length <= 1) return;
-
-            const cols = Array.from(row.querySelectorAll('td'))
-                .map(td => td.textContent.trim())
-                .join(",");
-            csvContent += cols + "\r\n";
+        analyticsData.forEach(item => {
+            csvContent += `${item.time},${item.filename},${item.count},${item.status}\n`;
         });
 
         const encodedUri = encodeURI(csvContent);
@@ -615,3 +619,154 @@ function loadRecentUploads() {
         });
     }
 }
+// --- ENHANCED DOWNLOAD LOGIC (v10.2) ---
+document.addEventListener('DOMContentLoaded', () => {
+    const downloadBtn = document.getElementById('download-sample-btn');
+    const dropdownMenu = document.getElementById('download-dropdown');
+    const sampleModal = document.getElementById('sample-media-modal');
+    const closeSampleModal = document.getElementById('close-sample-modal');
+    const modalTitle = document.getElementById('modal-mode-title');
+    const sampleGrid = document.getElementById('sample-grid');
+
+    // Sample Data Store
+    const sampleData = {
+        static: [
+            { name: "01_Jute_Stack_Truck", type: "image", url: "assets/samples/static_1.jpg", thumb: "assets/samples/static_1.jpg" },
+            { name: "02_Jute_Bags_CloseUp", type: "image", url: "assets/samples/static_2.jpg", thumb: "assets/samples/static_2.jpg" },
+            { name: "03_Jute_Warehouse_Grid", type: "image", url: "assets/samples/static_3.jpg", thumb: "assets/samples/static_3.jpg" },
+            { name: "04_Jute_Loading_Bay", type: "image", url: "assets/samples/static_4.jpg", thumb: "assets/samples/static_4.jpg" }
+        ],
+        scanning: [
+            { name: "Scanning Mode 01", type: "video", url: "assets/samples/scanning_1.mp4", thumb: "assets/samples/scanning_thumb.jpg" },
+            { name: "Scanning Mode 02", type: "video", url: "assets/samples/scanning_2.mp4", thumb: "assets/samples/scanning_thumb.jpg" },
+            { name: "Scanning Mode 03", type: "video", url: "assets/samples/scanning_3.mp4", thumb: "assets/samples/scanning_thumb.jpg" },
+            { name: "Scanning Mode 04", type: "video", url: "assets/samples/scanning_4.mp4", thumb: "assets/samples/scanning_thumb.jpg" }
+        ],
+        zone: [
+            { name: "Zone Mode 01", type: "video", url: "assets/samples/zone_1.mp4", thumb: "assets/samples/zone_thumb.jpg" },
+            { name: "Zone Mode 02", type: "video", url: "assets/samples/zone_2.mp4", thumb: "assets/samples/zone_thumb.jpg" }
+        ]
+    };
+
+    // Toggle Dropdown
+    if (downloadBtn && dropdownMenu) {
+        downloadBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropdownMenu.classList.toggle('show');
+        });
+
+        // Close dropdown when clicking outside
+        window.addEventListener('click', () => {
+            dropdownMenu.classList.remove('show');
+        });
+    }
+
+    // Handle Dropdown Item Clicks
+    const dropdownItems = document.querySelectorAll('.dropdown-item');
+    dropdownItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const mode = item.getAttribute('data-mode');
+            const modeTitle = item.textContent.trim();
+
+            if (mode === 'static' || mode === 'scanning' || mode === 'zone') {
+                downloadModeZip(mode);
+            } else {
+                openSampleModal(mode, modeTitle);
+            }
+        });
+    });
+
+    async function downloadModeZip(mode) {
+        const items = sampleData[mode] || [];
+        if (items.length === 0) return;
+
+        const zip = new JSZip();
+        const zipName = `jute_${mode}_samples_bundle.zip`;
+        const folder = zip.folder(`jute_${mode}_samples`);
+
+        const fetchPromises = items.map(async (sample) => {
+            try {
+                const response = await fetch(sample.url);
+                const blob = await response.blob();
+                const extension = sample.type === 'video' ? '.mp4' : '.jpg';
+                const fileName = sample.name.replace(/ /g, '_') + extension;
+                folder.file(fileName, blob);
+            } catch (err) {
+                console.error(`Failed to fetch ${sample.name}:`, err);
+            }
+        });
+
+        await Promise.all(fetchPromises);
+
+        const content = await zip.generateAsync({ type: "blob" });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(content);
+        link.download = zipName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(link.href), 100);
+    }
+
+    function openSampleModal(mode, title) {
+        modalTitle.textContent = title;
+        sampleGrid.innerHTML = ''; // Clear previous
+
+        const items = sampleData[mode] || [];
+
+        if (items.length === 0) {
+            sampleGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); padding: 2rem;">No samples available for this mode yet.</p>`;
+        } else {
+            items.forEach(sample => {
+                const card = document.createElement('div');
+                card.className = 'sample-card';
+                card.innerHTML = `
+                    ${sample.type === 'video'
+                        ? `<video src="${sample.url}" class="sample-preview" muted onmouseover="this.play()" onmouseout="this.pause(); this.currentTime=0;"></video>`
+                        : `<img src="${sample.url}" class="sample-preview" alt="${sample.name}">`}
+                    <div class="sample-info">
+                        <span class="sample-name" title="${sample.name}">${sample.name}</span>
+                        <button class="btn-sample-download" data-url="${sample.url}" data-name="${sample.name}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Download ${sample.type === 'video' ? 'Video' : 'Image'}
+                        </button>
+                    </div>
+                `;
+                sampleGrid.appendChild(card);
+
+                // Add Download Logic
+                card.querySelector('.btn-sample-download').addEventListener('click', () => {
+                    const link = document.createElement('a');
+                    link.href = sample.url;
+                    link.download = `${sample.name.toLowerCase().replace(/ /g, '_')}.${sample.type === 'video' ? 'mp4' : 'jpg'}`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+            });
+        }
+
+        sampleModal.classList.add('active');
+        sampleModal.style.opacity = '1';
+        sampleModal.style.pointerEvents = 'auto';
+    }
+
+    // Close Modal Logic
+    if (closeSampleModal) {
+        closeSampleModal.addEventListener('click', () => {
+            sampleModal.classList.remove('active');
+            sampleModal.style.opacity = '0';
+            sampleModal.style.pointerEvents = 'none';
+        });
+    }
+
+    window.addEventListener('click', (e) => {
+        if (e.target === sampleModal) {
+            sampleModal.classList.remove('active');
+            sampleModal.style.opacity = '0';
+            sampleModal.style.pointerEvents = 'none';
+        }
+    });
+});

@@ -65,6 +65,20 @@ function initDashboard() {
     if (exportBtn) {
         exportBtn.addEventListener('click', exportData);
     }
+
+    // Chart Filters (v11.1)
+    const chartFilters = document.querySelectorAll('.chart-filter');
+    chartFilters.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // UI Toggle
+            chartFilters.forEach(f => f.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Data Update
+            const range = btn.textContent.trim().toLowerCase();
+            updateProductionChart(state.filteredData, range);
+        });
+    });
 }
 
 // Load Data
@@ -143,11 +157,13 @@ function renderDashboard(data) {
     renderTable(data);
     updateGlobalStats(data);
 
-    // Update Charts
-    updateProductionChart(data);
+    // Update Charts (Default to daily)
+    const activeFilter = document.querySelector('.chart-filter.active');
+    const range = activeFilter ? activeFilter.textContent.trim().toLowerCase() : 'daily';
+    updateProductionChart(data, range);
     updateStatusChart(data);
 
-    // Initialize all charts
+    // Initialize all other charts
     initWeeklyChart(data);
     initRadarChart(data);
     initHeatmap(data);
@@ -358,31 +374,52 @@ function updateGlobalStats(data) {
 let productionChartInstance = null;
 let statusChartInstance = null;
 
-// 1. Production Trend Chart
-function updateProductionChart(data) {
+// 1. Production Trend Chart (v11.2 - Supports Daily/Weekly)
+function updateProductionChart(data, range = 'daily') {
     const ctx = document.getElementById('productionChart');
     if (!ctx) return;
 
-    // Aggregate data by hour
-    const hourlyCounts = new Array(24).fill(0);
-    data.forEach(item => {
-        if (item.time && item.count) {
-            const [hours] = item.time.split(':').map(Number);
-            if (!isNaN(hours) && hours >= 0 && hours < 24) {
-                hourlyCounts[hours] += parseInt(item.count);
-            }
-        }
-    });
+    let labels = [];
+    let values = [];
 
-    // Generate Labels (Last 12 hours relative to now)
-    const labels = [];
-    const values = [];
-    const currentHour = new Date().getHours();
-    for (let i = 11; i >= 0; i--) {
-        let h = currentHour - i;
-        if (h < 0) h += 24;
-        labels.push(`${h}:00`);
-        values.push(hourlyCounts[h]);
+    if (range === 'daily') {
+        // Aggregate data by hour (Last 12 hours)
+        const hourlyCounts = new Array(24).fill(0);
+        data.forEach(item => {
+            if (item.time && item.count) {
+                const [hours] = item.time.split(':').map(Number);
+                if (!isNaN(hours) && hours >= 0 && hours < 24) {
+                    hourlyCounts[hours] += parseInt(item.count);
+                }
+            }
+        });
+
+        const currentHour = new Date().getHours();
+        for (let i = 11; i >= 0; i--) {
+            let h = currentHour - i;
+            if (h < 0) h += 24;
+            labels.push(`${h}:00`);
+            values.push(hourlyCounts[h]);
+        }
+    } else {
+        // Aggregate data by Day of the Week (Last 7 days)
+        // We use the 'time' and assume it's relative to today for this session
+        // In a real DB we'd have dates, here we simulation based on day offsets
+        const dailyCounts = new Array(7).fill(0);
+
+        // Mocking: Some historical data + today's real data
+        const historical = [120, 150, 180, 200, 160];
+        const todayIndex = (new Date().getDay() + 6) % 7; // Mon=0, Sun=6
+
+        historical.forEach((v, i) => { if (i < todayIndex) dailyCounts[i] = v; });
+
+        // Add current session data to today's slot
+        let sessionTotal = 0;
+        data.forEach(item => sessionTotal += (parseInt(item.count) || 0));
+        dailyCounts[todayIndex] = sessionTotal;
+
+        labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        values = dailyCounts;
     }
 
     if (productionChartInstance) productionChartInstance.destroy();
@@ -393,21 +430,21 @@ function updateProductionChart(data) {
     gradient.addColorStop(1, 'rgba(73, 122, 33, 0.0)');
 
     productionChartInstance = new Chart(ctx, {
-        type: 'line',
+        type: range === 'daily' ? 'line' : 'bar',
         data: {
             labels: labels,
             datasets: [{
                 label: 'Processed Bags',
                 data: values,
                 borderColor: colors.brandGreen,
-                backgroundColor: gradient,
-                borderWidth: 3,
+                backgroundColor: range === 'daily' ? gradient : colors.brandGreen,
+                borderWidth: 2,
                 pointBackgroundColor: '#fff',
                 pointBorderColor: colors.brandGreen,
                 pointRadius: 4,
-                pointHoverRadius: 6,
-                fill: true,
-                tension: 0.4
+                fill: range === 'daily',
+                tension: 0.4,
+                borderRadius: range === 'weekly' ? 6 : 0
             }]
         },
         options: {

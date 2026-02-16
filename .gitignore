@@ -15,4 +15,5 @@ backend/temp_uploads/
 backend/runs/
 backend/training_data/
 *.mp4
+!frontend/assets/samples/*.mp4
 *.pt
