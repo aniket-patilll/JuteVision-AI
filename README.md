@@ -129,7 +129,30 @@ The system supports three distinct analysis modes:
 
 The **Live Feed** toggle on the dashboard allows for real-time monitoring directly from connected CCTV sources.
 
-## 📊 API Endpoints
+## � Data Storage & Management
+
+The system uses a hybrid storage approach to ensure performance and reliability:
+
+### Backend (Server-Side)
+- **Processed Media**: Annotated videos and images are stored in `backend/detections/`.
+- **Task History**: Permanent records of processing tasks are saved in `backend/data/tasks.json`.
+- **Original Uploads**: Raw files uploaded by users are temporarily kept in `backend/uploads/`.
+
+### Frontend (Client-Side)
+- **Browser LocalStorage**: Used for persistent UI state and fast access:
+    - `recentUploads`: Stores the last 5 task results for the dashboard sidebar.
+    - `analyticsData`: Maintains up to 50 activity log entries for the Analytics tab.
+    - `currentTotalBags`: Tracks the cumulative session count.
+
+## 🔄 Real-Time Dashboard Updates
+
+The dashboard maintains high interactivity through three primary mechanisms:
+
+1. **WebSockets (Push)**: A dedicated `ws://` connection enables the backend to push live count updates and processing statuses directly to the UI without page refreshes.
+2. **Task Polling (Pull)**: After an upload, the dashboard polls the status of the specific `task_id` every 2 seconds until completion.
+3. **Session Persistence**: On page load, the frontend synchronizes with `localStorage` to restore previous counts and activity logs immediately.
+
+## �📊 API Endpoints
 
 - `POST /upload` - Upload video/image for processing
 - `GET /tasks/{task_id}` - Get processing status
