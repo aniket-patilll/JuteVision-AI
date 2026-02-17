@@ -1,10 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+import { SUPABASE_CONFIG } from './config.js';
 
-// Placeholder credentials - YOU MUST UPDATE THESE
-const SUPABASE_URL = 'https://nrlogpxkdrflsiukhqcb.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ybG9ncHhrZHJmbHNpdWtocWNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMDk5NTcsImV4cCI6MjA4NDY4NTk1N30.QC6dAmVK6fKainhAs5lltwvDLPJkWg72Wfs4w_nfMRg';
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+export const supabase = createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.KEY);
 
 export async function signUp(email, password, fullName) {
     const { data, error } = await supabase.auth.signUp({
