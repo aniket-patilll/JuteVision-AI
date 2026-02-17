@@ -28,7 +28,7 @@ export const SUPABASE_CONFIG = {
 
 // Construct full URLs
 export const getApiUrl = (endpoint) => `${API_BASE_URL}${endpoint}`;
-export const getApiUrl = (endpoint) => `${API_BASE_URL}${endpoint}`;
+
 export const getWsUrl = (endpoint) => {
     // In browser, connect to current host (Vite) which proxies to backend
     if (typeof window !== 'undefined') {
