@@ -1,4 +1,5 @@
 import { requireAuth, signOut } from './auth.js';
+import { API_BASE_URL, ENDPOINTS, getApiUrl, getWsUrl } from './config.js';
 
 // Protect Route
 requireAuth();
@@ -99,7 +100,7 @@ async function handleUpload(file) {
     formData.append('mode', selectedMode);
 
     try {
-        const response = await fetch('http://localhost:8000/upload', {
+        const response = await fetch(getApiUrl(ENDPOINTS.UPLOAD), {
             method: 'POST',
             body: formData
         });
@@ -123,7 +124,7 @@ async function handleUpload(file) {
 async function pollTaskStatus(taskId, element) {
     const interval = setInterval(async () => {
         try {
-            const response = await fetch(`http://localhost:8000/tasks/${taskId}`);
+            const response = await fetch(`${API_BASE_URL}${ENDPOINTS.TASKS}/${taskId}`);
             const task = await response.json();
 
             if (task.status === 'completed') {
@@ -150,7 +151,7 @@ async function pollTaskStatus(taskId, element) {
                 resultContainer.className = 'result-media-container';
                 resultContainer.style.marginTop = '10px';
 
-                const mediaUrl = `http://localhost:8000${task.video_url}`; // Backend sends URL in video_url field for both
+                const mediaUrl = `${API_BASE_URL}${task.video_url}`; // Backend sends URL in video_url field for both
 
                 if (task.is_image) {
                     resultContainer.innerHTML = `
@@ -275,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cameraToggle = document.getElementById('camera-toggle');
     const cameraFeed = document.getElementById('camera-feed');
     const cameraPlaceholder = document.getElementById('camera-placeholder');
-    const streamUrl = 'http://localhost:8000/stream';
+    const streamUrl = getApiUrl(ENDPOINTS.STREAM);
 
     if (cameraToggle && cameraFeed) {
         // Function to update UI based on toggle state
@@ -335,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // WebSocket Connection Logic
 // Connect to backend WebSocket (backend runs on port 8000)
-const wsUrl = 'ws://localhost:8000/ws';
+const wsUrl = getWsUrl(ENDPOINTS.WS);
 const socket = new WebSocket(wsUrl);
 
 socket.onopen = () => {
@@ -489,7 +490,7 @@ if (resetBtn) {
     resetBtn.addEventListener('click', async () => {
         if (confirm('Are you sure you want to reset the session? This will clear all counts and history.')) {
             try {
-                const response = await fetch('http://localhost:8000/reset', { method: 'POST' });
+                const response = await fetch(getApiUrl(ENDPOINTS.RESET), { method: 'POST' });
                 if (response.ok) {
                     // Clear UI
                     resetUI();

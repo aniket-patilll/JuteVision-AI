@@ -1,14 +1,17 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite';
+import { BACKEND_URL, BACKEND_WS_URL } from './config.js';
 
 export default defineConfig({
     server: {
         proxy: {
-            '/upload': 'http://localhost:8000',
-            '/tasks': 'http://localhost:8000',
-            '/stream': 'http://localhost:8000',
-            '/download': 'http://localhost:8000',
+            '/upload': BACKEND_URL,
+            '/tasks': BACKEND_URL,
+            '/stream': BACKEND_URL,
+            '/download': BACKEND_URL,
+            '/reset': BACKEND_URL,
+            '/static': BACKEND_URL, // Common path for backend static files
             '/ws': {
-                target: 'ws://localhost:8000',
+                target: BACKEND_WS_URL,
                 ws: true
             }
         }
