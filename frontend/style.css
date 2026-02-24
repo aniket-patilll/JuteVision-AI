@@ -1754,3 +1754,350 @@ input:checked+.slider:before {
     margin-top: 2rem !important;
     /* Give some breathing room between guide and monitoring header */
 }
+
+/* ============================================================
+   MULTI-CCTV MODE STYLES
+   ============================================================ */
+.multi-cctv-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.multi-cctv-header h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+.multi-cctv-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-add-cam {
+    padding: 0.4rem 0.9rem !important;
+    font-size: 0.8rem !important;
+    gap: 0.3rem;
+}
+
+.total-badge {
+    background: linear-gradient(135deg, #497A21, #6db33f);
+    color: white;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(73, 122, 33, 0.3);
+}
+
+.camera-count-badge {
+    background: rgba(73, 122, 33, 0.1);
+    color: #497A21;
+    padding: 0.4rem 0.8rem;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.multi-cctv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+    min-height: 300px;
+    align-content: start;
+}
+
+.camera-cell {
+    background: #0d1117;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.camera-cell:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    border-color: rgba(73, 122, 33, 0.4);
+}
+
+.camera-cell-body {
+    position: relative;
+    min-height: 180px;
+    background: #0d1117;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.camera-cell-body img,
+.camera-cell-body video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* CCTV overlay label — top left */
+.cam-overlay-label {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #00e676;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+    z-index: 5;
+    letter-spacing: 0.5px;
+}
+
+/* CCTV overlay count — top right */
+.cam-overlay-count {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fbbf24;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+    z-index: 5;
+}
+
+/* Status + remove — bottom right */
+.cam-overlay-status {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 5;
+}
+
+.cam-waiting-text {
+    color: #4a5568;
+    font-size: 0.8rem;
+    z-index: 2;
+}
+
+.camera-cell-status {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.camera-cell-status.idle {
+    background: rgba(241, 245, 249, 0.9);
+    color: #64748b;
+}
+
+.camera-cell-status.processing {
+    background: rgba(255, 243, 205, 0.9);
+    color: #856404;
+}
+
+.camera-cell-status.completed {
+    background: rgba(212, 237, 218, 0.9);
+    color: #155724;
+}
+
+.camera-cell-status.live {
+    background: rgba(248, 215, 218, 0.9);
+    color: #dc3545;
+    animation: pulse 2s infinite;
+}
+
+.camera-cell-status.error {
+    background: rgba(248, 215, 218, 0.9);
+    color: #721c24;
+}
+
+.camera-cell-remove {
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.camera-cell-remove:hover {
+    background: #dc3545;
+    color: white;
+}
+
+/* Live camera header button */
+.btn-live-cam-header {
+    background: white;
+    color: #dc3545;
+    border: 1px solid #dc3545;
+    padding: 0.4rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.btn-live-cam-header:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.add-camera-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    border: 2px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    background: rgba(13, 17, 23, 0.5);
+    grid-column: 1 / -1;
+}
+
+.placeholder-content {
+    text-align: center;
+    color: #64748b;
+}
+
+.placeholder-content p {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+/* ============================================================
+   GODOWN MODE STYLES
+   ============================================================ */
+.godown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.godown-header h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+.godown-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.godown-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.godown-inventory-card {
+    background: linear-gradient(135deg, rgba(73, 122, 33, 0.08), rgba(73, 122, 33, 0.02));
+    border: 1px solid rgba(73, 122, 33, 0.2);
+}
+
+.godown-in-card {
+    background: linear-gradient(135deg, rgba(0, 200, 83, 0.08), rgba(0, 200, 83, 0.02));
+    border: 1px solid rgba(0, 200, 83, 0.15);
+}
+
+.godown-out-card {
+    background: linear-gradient(135deg, rgba(255, 82, 82, 0.08), rgba(255, 82, 82, 0.02));
+    border: 1px solid rgba(255, 82, 82, 0.15);
+}
+
+.godown-line-control {
+    margin-bottom: 2rem;
+}
+
+.godown-line-control h3 {
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.godown-slider {
+    width: 100%;
+    height: 8px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(90deg, #00C853 0%, #fbbf24 50%, #FF5252 100%);
+    border-radius: 4px;
+    outline: none;
+    margin: 0.75rem 0;
+}
+
+.godown-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    background: #497A21;
+    border-radius: 50%;
+    cursor: grab;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    border: 3px solid white;
+}
+
+.godown-slider::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.1);
+}
+
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+#godown-line-value {
+    font-weight: 600;
+    color: #497A21;
+}
+
+/* ============================================================
+   RESPONSIVE — NEW MODES
+   ============================================================ */
+@media (max-width: 768px) {
+    .multi-cctv-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .godown-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .multi-cctv-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .godown-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

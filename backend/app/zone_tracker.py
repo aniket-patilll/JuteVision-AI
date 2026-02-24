@@ -93,7 +93,7 @@ class ModularZoneTracker:
         self.display_id_states = {}
         return {"status": "reset", "count": 0}
 
-    def process_video(self, video_path, output_path, on_update=None):
+    def process_video(self, video_path, output_path, on_update=None, mode="zone"):
         self.reset_state() # v13.5 Fresh Start Per Video
         if self.model is None:
             return {"count": 0, "status": "model_not_loaded"}
@@ -168,6 +168,28 @@ class ModularZoneTracker:
                         if cls != self.target_class_id:
                             continue
 
+                    # --- Intra-frame NMS (Prevent 3 boxes on 1 sack) ---
+                    # Sometimes YOLO returns overlapping boxes for the same object on the same frame
+                    is_intra_duplicate = False
+                    box_area = box[2] * box[3]
+                    for other_box, other_tid in zip(boxes, ids):
+                        if tid == other_tid: continue
+                        
+                        other_area = other_box[2] * other_box[3]
+                        
+                        # Calculate IOU
+                        iou = self.bbox_overlap_ratio(box, 
+                            [[other_box[0]-other_box[2]/2, other_box[1]-other_box[3]/2], 
+                             [other_box[0]+other_box[2]/2, other_box[1]-other_box[3]/2],
+                             [other_box[0]+other_box[2]/2, other_box[1]+other_box[3]/2],
+                             [other_box[0]-other_box[2]/2, other_box[1]+other_box[3]/2]])
+                        
+                        # If boxes overlap by > 45%, keep the larger one, drop the smaller one
+                        if iou > 0.45 and box_area < other_area:
+                            is_intra_duplicate = True
+                            break
+                    if is_intra_duplicate: continue
+
                     # 🔥 Ultra-Strict Industrial Filter (v8.3)
                     w, h = box[2], box[3]
                     aspect_ratio = w / h
@@ -221,7 +243,8 @@ class ModularZoneTracker:
                     # v11.6 Spatial Inheritance for Unconfirmed IDs (Prevent ID Flip resets)
                     if tid not in self.object_states:
                         best_match_tid = None
-                        min_dist = 60 # 60px search radius for inheritance
+                        # Dynamic inheritance radius: Zone mode targets can move fast while occluded
+                        min_dist = 60 if mode == "conveyor" else width * 0.15
                         for old_tid, old_state in self.object_states.items():
                             if not old_state.get("confirmed", False):
                                 d = np.sqrt((cx - old_state.get("last_cx", 0))**2 + (cy - old_state.get("last_cy", 0))**2)
@@ -267,29 +290,40 @@ class ModularZoneTracker:
                             # v12.1 Global Spatio-Temporal Precision Logic
                             total_travel = np.sqrt((cx - state["start_cx"])**2 + (cy - state["start_cy"])**2)
                             
-                            # v12.11 sensitivity: 5px (Recall motion buffer)
-                            if total_travel > 5:
+                            # v12.11 sensitivity: Dynamic travel buffer to eliminate static background jitter
+                            min_travel = 30 if mode == "conveyor" else max(40, int(width * 0.08))
+                            if total_travel > min_travel:
                                 # 1. Global Centroid Rejection (v13.0 Precision Absolute)
                                 is_reconfirmed = False
                                 
                                 # Dynamic Radius (High-Recall Balance for 7-sack density):
                                 # Large (Conveyor): width * 0.15 (Stable)
                                 # Small (Workers): width * 0.06 (Approx 36px)
-                                radius = width * 0.15 if (w > width * 0.20) else width * 0.06
+                                radius = width * 0.4 if mode == "conveyor" else (width * 0.20 if (w > width * 0.20) else width * 0.10)
                                 
                                 for old_cx, old_cy, old_frame in self.confirmed_centroids:
                                     dist_to_confirmed = np.sqrt((cx - old_cx)**2 + (cy - old_cy)**2)
-                                    if dist_to_confirmed < radius and (frame_idx - old_frame) < 100:
+                                    # CRITICAL FIX: Reduced from 120 to 25 frames. If 120 frames, bag 2 entering the same spot as bag 1 gets rejected.
+                                    if dist_to_confirmed < radius and (frame_idx - old_frame) < 25: 
                                         is_reconfirmed = True
                                         break
                                 
                                 if not is_reconfirmed:
+                                    # CRITICAL FIX: Prevent new bag from stealing an ID that is currently visible and active!
+                                    active_display_ids = set()
+                                    for active_tid, active_state in self.object_states.items():
+                                        # Only protect IDs of sacks actually detected by YOLO in THIS frame
+                                        if active_tid != tid and active_state.get("confirmed", False) and active_tid in ids:
+                                            active_display_ids.add(self.tid_to_display_id.get(active_tid))
+
                                     # 2. Local ID Jump Protection
                                     matched_display_id = None
                                     # Dynamic Radius (Matching reconfirmation):
-                                    jump_radius = width * 0.15 if (w > width * 0.20) else width * 0.06
-                                    self.recent_confirmations = [c for c in self.recent_confirmations if frame_idx - c[2] < 100]
+                                    jump_radius = width * 0.4 if mode == "conveyor" else (width * 0.20 if (w > width * 0.20) else width * 0.10)
+                                    self.recent_confirmations = [c for c in self.recent_confirmations if frame_idx - c[2] < 120]
                                     for rc_x, rc_y, rc_f, rc_id in self.recent_confirmations:
+                                        if rc_id in active_display_ids:
+                                            continue # Cannot steal an ID if that sack is currently visible in the frame!
                                         if np.sqrt((cx - rc_x)**2 + (cy - rc_y)**2) < jump_radius:
                                             matched_display_id = rc_id
                                             break
@@ -322,6 +356,7 @@ class ModularZoneTracker:
                                         state["alert_state"] = "entered"
                                         self.display_id_states[display_id]["alert_state"] = "entered"
                                         self.display_id_states[display_id]["confirmed"] = True
+                                        state["confirmed"] = True # CRITICAL FIX: Mark internal object state as confirmed to stop re-registration
                                         state["last_event_frame"] = frame_idx
                                         self.events.append({
                                             "msg": f"Sack {display_id} Entered (+1)",
@@ -329,14 +364,27 @@ class ModularZoneTracker:
                                             "frame": frame_idx
                                         })
 
+                        elif state["confirmed"]:
+                            display_id = self.tid_to_display_id.get(tid, tid)
+                            # CRITICAL FIX: Continuously update the object's spatial anchor so jump protection follows it across the screen
+                            for rc in self.recent_confirmations:
+                                if rc[3] == display_id:
+                                    rc[0] = cx
+                                    rc[1] = cy
+                                    rc[2] = frame_idx
+                                    break
+
                         color = (0, 255, 0)
 
                     else:
                         state["outside_frames"] += 1
                         state["inside_frames"] = 0
 
+                        # CRITICAL FIX: Zone mode objects can be heavily occluded by workers for up to 6 seconds before reappearing. 
+                        # We must wait before declaring them 'Left (-1)'.
+                        exit_thresh = 120 if mode == "conveyor" else 150
                         if (
-                            state["outside_frames"] >= self.exit_threshold
+                            state["outside_frames"] >= exit_thresh
                             and state["confirmed"]
                         ):
                             display_id = self.tid_to_display_id.get(tid, tid)
@@ -381,7 +429,9 @@ class ModularZoneTracker:
                 if tid not in detected_ids:
                     self.object_states[tid]["outside_frames"] += 1
 
-                    if self.object_states[tid]["outside_frames"] >= self.exit_threshold:
+                    # CRITICAL FIX: Match the secondary cleanup loop to the extended 150-frame occlusion memory for Zone mode
+                    exit_thresh_cleanup = 120 if mode == "conveyor" else 150
+                    if self.object_states[tid]["outside_frames"] >= exit_thresh_cleanup:
                         # v9.4 Global Secondary Cleanup
                         display_id = self.tid_to_display_id.get(tid, tid)
                         global_data = self.display_id_states.get(display_id, {})

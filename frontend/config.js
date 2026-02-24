@@ -19,7 +19,23 @@ export const ENDPOINTS = {
     RESET: '/reset',
     WS: '/ws',
     CAMERA_ON: '/camera/on',
-    CAMERA_OFF: '/camera/off'
+    CAMERA_OFF: '/camera/off',
+    // Multi-CCTV
+    MULTI_CCTV_ADD: '/multi-cctv/add',
+    MULTI_CCTV_UPLOAD: '/multi-cctv/upload',   // Append /:cameraId
+    MULTI_CCTV_LIVE: '/multi-cctv/live',       // Append /:cameraId
+    MULTI_CCTV_REMOVE: '/multi-cctv/remove',   // Append /:cameraId
+    MULTI_CCTV_STOP: '/multi-cctv/stop',       // Append /:cameraId (optional)
+    MULTI_CCTV_STREAM: '/multi-cctv/stream',   // Append /:cameraId
+    MULTI_CCTV_COUNTS: '/multi-cctv/counts',
+    MULTI_CCTV_UPLOAD_GRID: '/multi-cctv/upload-grid',
+    // Godown
+    GODOWN_STATUS: '/godown/status',
+    GODOWN_BASELINE: '/godown/set-baseline',
+    GODOWN_RESET_DAILY: '/godown/reset-daily',
+    GODOWN_START_LIVE: '/godown/start-live',
+    GODOWN_UPDATE_LINE: '/godown/update-line',
+    GODOWN_STREAM: '/godown/stream',
 };
 
 // Supabase Configuration

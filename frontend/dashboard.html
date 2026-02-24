@@ -76,6 +76,33 @@
                             </svg>
                             Zone Counting Mode
                         </a>
+                        <a href="#" class="dropdown-item" data-mode="volume">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path
+                                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                                </path>
+                            </svg>
+                            Volume Estimation Mode
+                        </a>
+                        <a href="#" class="dropdown-item" data-mode="multicctv">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="2" y="3" width="9" height="8" rx="1"></rect>
+                                <rect x="13" y="3" width="9" height="8" rx="1"></rect>
+                                <rect x="2" y="13" width="9" height="8" rx="1"></rect>
+                                <rect x="13" y="13" width="9" height="8" rx="1"></rect>
+                            </svg>
+                            Multi-CCTV Mode
+                        </a>
+                        <a href="#" class="dropdown-item" data-mode="godown">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <polyline points="19 12 12 19 5 12"></polyline>
+                            </svg>
+                            Godown Mode
+                        </a>
                     </div>
                 </div>
                 <div class="system-status">
@@ -106,9 +133,9 @@
                             <div class="step-number">1</div>
                             <div class="usage-card-text">
                                 <h4>Define Analysis Mode</h4>
-                                <p>Choose between <strong>Conveyor Mode</strong> for belt precision, <strong>Static
-                                        Mode</strong> for piles, <strong>Scanning Mode</strong> for dynamic videos, or
-                                    <strong>Zone Mode</strong> for custom ROI Areas.</p>
+                                <p>Choose from <strong>8 powerful AI tracking modes</strong> tailored for your
+                                    environment, including: Conveyor, Static, Scanning, Live CCTV, Zone, Volume,
+                                    Multi-CCTV, and Godown.</p>
                             </div>
                         </div>
                         <div class="usage-card">
@@ -171,26 +198,81 @@
 
 
                 <div class="dashboard-grid">
-                    <!-- Live Stream Feed (MJPEG) -->
+                    <!-- Live Stream Feed (MJPEG) / Multi-CCTV Grid -->
                     <div class="card video-feed-card">
-                        <div class="card-header">
+                        <!-- Single Camera Header (default) -->
+                        <div class="card-header" id="single-cam-header">
                             <h3>Live Feed 01</h3>
                             <span class="live-badge">LIVE</span>
                         </div>
-                        <div class="video-container">
-                            <!-- MJPEG Stream Source - Default Empty -->
-                            <img src="" alt="Live Camera Feed" class="live-stream-img" id="camera-feed"
-                                style="display: none;">
-                            <div class="camera-placeholder" id="camera-placeholder">
-                                <p>Camera is Disable</p>
+                        <!-- Multi-CCTV Header (hidden by default) -->
+                        <div class="card-header multi-cctv-card-header" id="multi-cam-header" style="display: none;">
+                            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                                <h3 style="color:#497A21; margin:0;">Multi-CCTV Surveillance</h3>
+                                <span class="total-badge">Total: <strong id="multi-cctv-total">0</strong></span>
+                                <span class="camera-count-badge" id="multi-cctv-cam-count">0 Cameras</span>
                             </div>
-                            <div class="overlay-ui">
-                                <div class="zone-line"></div>
+                            <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                                <button class="btn-secondary btn-add-cam" id="add-camera-btn" title="Add Camera Cell">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    Add Camera
+                                </button>
+                                <button class="btn-primary btn-add-cam" id="multi-upload-btn"
+                                    title="Upload video to next idle camera">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="17 8 12 3 7 8"></polyline>
+                                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                                    </svg>
+                                    Upload Video
+                                </button>
+                                <button class="btn-live-cam-header" id="multi-live-btn"
+                                    title="Start live webcam on next idle camera">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                    Live Camera
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Camera Toggle Control -->
-                        <div class="camera-controls">
+                        <div class="video-container">
+                            <!-- Single camera elements -->
+                            <div id="single-cam-view">
+                                <img src="" alt="Live Camera Feed" class="live-stream-img" id="camera-feed"
+                                    style="display: none;">
+                                <div class="camera-placeholder" id="camera-placeholder">
+                                    <p>Camera is Disable</p>
+                                </div>
+                                <div class="overlay-ui">
+                                    <div class="zone-line"></div>
+                                </div>
+                            </div>
+
+                            <!-- Multi-CCTV Grid (hidden by default) -->
+                            <div class="multi-cctv-grid" id="multi-cctv-grid" style="display: none;">
+                                <div class="add-camera-placeholder" id="add-camera-placeholder">
+                                    <div class="placeholder-content">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="1" opacity="0.4">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                                        </svg>
+                                        <p>Click "Add Camera" to get started</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="camera-controls" id="single-cam-controls">
                             <label class="toggle-switch">
                                 <input type="checkbox" id="camera-toggle">
                                 <span class="slider round"></span>
@@ -215,6 +297,22 @@
                             </div>
                         </div>
 
+                        <!-- Multi-CCTV Camera Counts (beside grid in right column) -->
+                        <div id="multi-cctv-stats" class="card"
+                            style="display: none; margin-top: 10px; padding: 1.25rem;">
+                            <h3 style="color:#497A21; margin:0 0 12px 0; font-size:1rem; font-weight:700;">📊 Camera
+                                Counts</h3>
+                            <div id="multi-cctv-stats-list"
+                                style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                                <!-- Dynamic chips added via JS -->
+                            </div>
+                            <div
+                                style="font-weight: 700; font-size: 1.1rem; color: #1e293b; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                                Grand Total: <span id="multi-cctv-grand-total"
+                                    style="color: #497A21; font-size: 1.5rem;">0</span>
+                            </div>
+                        </div>
+
                         <div class="card upload-status-card" style="margin-top: 20px;">
                             <h3 style="color:#497A21">Upload Status</h3>
                             <div class="upload-list" id="upload-list">
@@ -225,8 +323,47 @@
                     </div>
                 </div>
 
+                <!-- Multi-CCTV section is now integrated into the video-feed-card above -->
 
-                <!-- Upload Modal (Hidden by default) -->
+                <!-- ===================== GODOWN STATS SECTION ===================== -->
+                <section id="godown-section" style="display: none;">
+                    <div class="godown-header">
+                        <h2 style="color:#497A21">Godown Inventory Monitor</h2>
+                        <div class="godown-actions">
+                            <button class="btn-secondary" id="godown-set-baseline-btn">Set Baseline</button>
+                            <button class="btn-secondary" id="godown-reset-daily-btn">Reset Daily</button>
+                        </div>
+                    </div>
+                    <div class="godown-stats-grid">
+                        <div class="card stat-card godown-inventory-card">
+                            <h3 style="color:#497A21">📦 Total Inventory</h3>
+                            <div class="stat-value" id="godown-inventory">0</div>
+                            <div class="stat-trend" id="godown-net-trend">Net: +0</div>
+                        </div>
+                        <div class="card stat-card godown-in-card">
+                            <h3 style="color:#00C853">⬆️ Bags In Today</h3>
+                            <div class="stat-value" id="godown-today-in" style="color:#00C853">0</div>
+                        </div>
+                        <div class="card stat-card godown-out-card">
+                            <h3 style="color:#FF5252">⬇️ Bags Out Today</h3>
+                            <div class="stat-value" id="godown-today-out" style="color:#FF5252">0</div>
+                        </div>
+                    </div>
+                    <div class="godown-line-control card">
+                        <h3>Counting Line Position</h3>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 10px;">Drag the
+                            slider to set where the counting line appears on the video. Sacks crossing below = IN, above
+                            = OUT.</p>
+                        <input type="range" id="godown-line-slider" min="10" max="90" value="50" class="godown-slider">
+                        <div class="slider-labels">
+                            <span>Top (10%)</span>
+                            <span id="godown-line-value">Center (50%)</span>
+                            <span>Bottom (90%)</span>
+                        </div>
+                    </div>
+                </section>
+
+
                 <div class="modal-backdrop" id="upload-modal">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -305,7 +442,6 @@
                                     </div>
                                 </label>
 
-                                <!-- Zone Counting Mode (Modular Redux) -->
                                 <label class="radio-card">
                                     <input type="radio" name="analysis-mode" value="zone">
                                     <div class="card-icon">
@@ -321,6 +457,86 @@
                                     </div>
                                 </label>
 
+                                <!-- Volume Estimation Mode -->
+                                <label class="radio-card">
+                                    <input type="radio" name="analysis-mode" value="volume">
+                                    <div class="card-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path
+                                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                                            </path>
+                                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                        </svg>
+                                    </div>
+                                    <div class="card-text">
+                                        <strong>Volume Estimation</strong>
+                                        <span>Predict Hidden Sacks in Stacks</span>
+                                    </div>
+                                </label>
+                                <!-- Optional Depth Input (shown via JS when Volume is selected) -->
+                                <div id="volume-depth-container"
+                                    style="display: none; padding-left: 45px; margin-top: -10px; margin-bottom: 10px;">
+                                    <label
+                                        style="font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 5px;">Known
+                                        Depth (Layers)</label>
+                                    <input type="number" id="manual-depth-input" min="1" max="50"
+                                        placeholder="Auto-calculated if blank"
+                                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.9rem;">
+                                </div>
+
+                                <!-- Multi-CCTV Mode -->
+                                <label class="radio-card">
+                                    <input type="radio" name="analysis-mode" value="multi-cctv">
+                                    <div class="card-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <rect x="2" y="3" width="9" height="8" rx="1"></rect>
+                                            <rect x="13" y="3" width="9" height="8" rx="1"></rect>
+                                            <rect x="2" y="13" width="9" height="8" rx="1"></rect>
+                                            <rect x="13" y="13" width="9" height="8" rx="1"></rect>
+                                        </svg>
+                                    </div>
+                                    <div class="card-text">
+                                        <strong>Multi-CCTV Mode</strong>
+                                        <span>Multiple Cameras Surveillance</span>
+                                    </div>
+                                </label>
+
+                                <!-- Godown Mode -->
+                                <label class="radio-card">
+                                    <input type="radio" name="analysis-mode" value="godown">
+                                    <div class="card-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                                        </svg>
+                                    </div>
+                                    <div class="card-text">
+                                        <strong>Godown Mode</strong>
+                                        <span>Warehouse Entry/Exit Counting</span>
+                                    </div>
+                                </label>
+
+                                <!-- Godown Sub-Options (shown when Godown is selected) -->
+                                <div id="godown-sub-options"
+                                    style="display:none; padding:8px 0 0 36px; gap:10px; flex-wrap:wrap;">
+                                    <label
+                                        style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:8px 16px; border:2px solid #497A21; border-radius:8px; font-size:0.9rem; font-weight:600; color:#497A21; background:#f0f9e8; transition:all 0.2s;">
+                                        <input type="radio" name="godown-sub" value="upload" checked
+                                            style="accent-color:#497A21;">
+                                        📤 Upload Video
+                                    </label>
+                                    <label
+                                        style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:8px 16px; border:2px solid #497A21; border-radius:8px; font-size:0.9rem; font-weight:600; color:#497A21; background:#f0f9e8; transition:all 0.2s; margin-left:8px;">
+                                        <input type="radio" name="godown-sub" value="cctv"
+                                            style="accent-color:#497A21;">
+                                        📹 CCTV Live
+                                    </label>
+                                </div>
+
                             </div>
                         </div>
 
@@ -334,8 +550,13 @@
                                     <path d="M12 3V15" />
                                 </svg>
                             </div>
-                            <p>Drag & Drop video here or <span>Browse</span></p>
-                            <input type="file" id="file-input" accept="video/mp4,video/avi" hidden>
+                            <p>Drag & Drop file here or <span>Browse</span></p>
+                            <p id="upload-support-text"
+                                style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Supports
+                                Videos
+                                (MP4, AVI) & Images (JPG, PNG)</p>
+                            <input type="file" id="file-input"
+                                accept="video/mp4,video/avi,image/jpeg,image/png,image/jpg,image/webp" hidden>
                         </div>
 
                         <!-- Start Camera Button (Hidden by default) -->
@@ -348,6 +569,19 @@
                                     <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                                 </svg>
                                 Start CCTV Live
+                            </button>
+                        </div>
+
+                        <!-- Start Godown CCTV Button (Hidden by default) -->
+                        <div id="godown-cctv-container" style="display: none; text-align: center; padding: 20px;">
+                            <button id="godown-start-cctv-btn" class="btn-primary"
+                                style="width: 100%; justify-content: center; padding: 12px; background: linear-gradient(135deg, #497A21, #6B8E23);">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M23 7l-7 5 7 5V7z"></path>
+                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                                </svg>
+                                Start Godown CCTV Live
                             </button>
                         </div>
                     </div>
@@ -456,13 +690,37 @@
                 const selectedMode = document.querySelector('input[name="analysis-mode"]:checked').value;
                 const dropZone = document.getElementById('drop-zone');
                 const startCameraContainer = document.getElementById('start-camera-container');
+                const godownCctvContainer = document.getElementById('godown-cctv-container');
+                const godownSubOptions = document.getElementById('godown-sub-options');
+
+                // Show/hide godown sub-options
+                if (godownSubOptions) {
+                    godownSubOptions.style.display = selectedMode === 'godown' ? 'flex' : 'none';
+                }
 
                 if (selectedMode === 'live') {
                     dropZone.style.display = 'none';
                     startCameraContainer.style.display = 'block';
+                    godownCctvContainer.style.display = 'none';
+                } else if (selectedMode === 'godown') {
+                    // Check godown sub-option
+                    const godownSub = document.querySelector('input[name="godown-sub"]:checked');
+                    const subVal = godownSub ? godownSub.value : 'upload';
+                    if (subVal === 'cctv') {
+                        dropZone.style.display = 'none';
+                        startCameraContainer.style.display = 'none';
+                        godownCctvContainer.style.display = 'block';
+                    } else {
+                        dropZone.style.display = 'flex';
+                        startCameraContainer.style.display = 'none';
+                        godownCctvContainer.style.display = 'none';
+                        fileInput.accept = "video/mp4,video/avi,video/mov";
+                        dropZoneText.innerHTML = "Drag & Drop <span>Video</span> here or <span>Browse</span>";
+                    }
                 } else {
                     dropZone.style.display = 'flex';
                     startCameraContainer.style.display = 'none';
+                    godownCctvContainer.style.display = 'none';
 
                     if (selectedMode === 'static') {
                         fileInput.accept = "image/jpeg,image/png,image/jpg";
@@ -470,11 +728,19 @@
                     } else if (selectedMode === 'conveyor' || selectedMode === 'scanning' || selectedMode === 'zone') {
                         fileInput.accept = "video/mp4,video/avi,video/mov";
                         dropZoneText.innerHTML = "Drag & Drop <span>Video</span> here or <span>Browse</span>";
+                    } else if (selectedMode === 'multi-cctv') {
+                        dropZone.style.display = 'none';
+                        startCameraContainer.style.display = 'none';
                     }
                 }
             }
 
             modeRadios.forEach(radio => radio.addEventListener('change', updateInputMode));
+
+            // Also listen to godown sub-option changes
+            document.querySelectorAll('input[name="godown-sub"]').forEach(radio => {
+                radio.addEventListener('change', updateInputMode);
+            });
 
             // Start Camera Logic
             document.getElementById('start-camera-btn').addEventListener('click', () => {

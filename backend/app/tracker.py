@@ -26,9 +26,8 @@ class JuteBagTracker:
             print(f"Error loading YOLO: {e}")
             self.model = None
 
-        # Persistent Counting State
+        # v13.5 Isolation: Removing persistent counts to prevent session leakage
         self.counted_ids = set()
-        self.total_count = 0
         
         # Track history
         self.track_history = {}
@@ -37,7 +36,6 @@ class JuteBagTracker:
         """Resets the tracker state to zero."""
         print("Resetting JuteBagTracker state...")
         self.counted_ids = set()
-        self.total_count = 0
         self.track_history = {}
         return {"status": "reset", "count": 0}
 
@@ -91,6 +89,19 @@ class JuteBagTracker:
         tiles.append((int(width*0.3), 0, int(width*0.7), height))
         tiles.append((width - v_w, 0, width, height))
         
+        # 5. Dense 3x3 Grid (for maximum coverage on crowded piles)
+        for r in range(3):
+            for c in range(3):
+                t_x1 = int(c * width / 3)
+                t_y1 = int(r * height / 3)
+                t_x2 = int((c + 1) * width / 3)
+                t_y2 = int((r + 1) * height / 3)
+                # Add padding (20% overlap)
+                pad_x = int((t_x2 - t_x1) * 0.2)
+                pad_y = int((t_y2 - t_y1) * 0.2)
+                tiles.append((max(0, t_x1 - pad_x), max(0, t_y1 - pad_y),
+                              min(width, t_x2 + pad_x), min(height, t_y2 + pad_y)))
+        
         all_boxes = []
         all_confs = []
         all_cls = []
@@ -113,10 +124,8 @@ class JuteBagTracker:
                 pass # Fallback to original if enhancement fails
             
             # Run Inference
-            # v8.1 Balanced Accuracy:
-            # - Static Mode (strict=False): High Recall (0.15) for dense piles.
-            # - Strict Mode (strict=True): High Precision (0.45) for conveyors/trucks.
-            conf_val = 0.45 if strict else 0.15
+            # v13.6 Improved Accuracy: Static Mode (strict=False) raised to 0.35 to prevent overcounting from false positives like text watermarks and background noise.
+            conf_val = 0.45 if strict else 0.35
             results = self.model.predict(tile_img, conf=conf_val, iou=0.60, augment=True, classes=[0], verbose=False)
             
             if results and len(results[0].boxes) > 0:
@@ -142,16 +151,31 @@ class JuteBagTracker:
         
         # Apply NMS (Non-Maximum Suppression)
         # strict=True: 0.30 (Aggressive anti-ghosting)
-        # strict=False: 0.20 (Absolute suppression for dense piles) - v8.3
-        nms_thresh = 0.30 if strict else 0.20
+        # strict=False: 0.23 (Middle ground between 0.20 and 0.30 to balance overlapping vs ghosting)
+        nms_thresh = 0.30 if strict else 0.23
         keep_indices = torch.ops.torchvision.nms(all_boxes, all_confs, nms_thresh)
         
         final_boxes = all_boxes[keep_indices]
         final_confs = all_confs[keep_indices]
         
-        # --- PROXIMITY-BASED CENTROID DEDUP (v8.3) ---
+        # --- PRE-FILTER GIANT BOXES ---
+        # Before deduplication, strip out obviously massive boxes that would swallow good small bags via is_contained
+        valid_pre = []
+        frame_area = width * height
+        size_limit = 0.25 if strict else 0.55
+        for i, box in enumerate(final_boxes):
+            w = float(box[2] - box[0])
+            h = float(box[3] - box[1])
+            if w * h > frame_area * (0.35 if strict else 0.45): continue
+            if w > width * size_limit or h > height * size_limit: continue
+            valid_pre.append(i)
+            
+        final_boxes = final_boxes[valid_pre] if valid_pre else torch.empty((0, 4), device=self.device if hasattr(self, 'device') else 'cpu')
+        final_confs = final_confs[valid_pre] if valid_pre else torch.empty((0), device=self.device if hasattr(self, 'device') else 'cpu')
+        
+        # --- PROXIMITY-BASED CENTROID DEDUP (v9.0) ---
         # Even with NMS, some boxes vary slightly in coordinates. 
-        # We merge boxes whose centers are within 15 pixels.
+        # We merge boxes whose centers are within a dynamic pixel range.
         deduped_boxes = []
         deduped_confs = []
         
@@ -177,9 +201,21 @@ class JuteBagTracker:
                     # Euclidean distance between centroids
                     dist = np.sqrt((c1_x - c2_x)**2 + (c1_y - c2_y)**2)
                     
-                    # 15px Threshold: Absolute zero-double counting guard
-                    if dist < 15:
+                    # Deduplication threshold relative to bag size for close-ups
+                    # We use absolute pixels or a percentage of bag's width (whichever is larger)
+                    w1 = b1[2] - b1[0]
+                    h1 = b1[3] - b1[1]
+                    dynamic_thresh = max(30, max(w1, h1) * 0.35)
+                    dist_thresh = 15 if strict else dynamic_thresh
+                    
+                    # Check if b2 is entirely inside b1 (or vice versa with a small margin based on image size)
+                    m_x = max(10, w1 * 0.15)
+                    m_y = max(10, h1 * 0.15)
+                    is_contained = (b2[0] >= b1[0] - m_x) and (b2[1] >= b1[1] - m_y) and (b2[2] <= b1[2] + m_x) and (b2[3] <= b1[3] + m_y)
+                    
+                    if dist < dist_thresh or is_contained:
                         used_mask[j] = True # Suppress the lower-confidence duplicate
+
                 
                 deduped_boxes.append(torch.tensor(b1))
                 deduped_confs.append(torch.tensor(confs_np[i]))
@@ -207,14 +243,14 @@ class JuteBagTracker:
             # Criteria (SMART):
             # 1. Size: Reject huge (wall) or tiny (speck) objects.
             # Relaxed for static piles: bags near camera can be large
-            is_large = area > frame_area * 0.35 
+            is_large = area > frame_area * (0.35 if strict else 0.45) 
             is_tiny = area < frame_area * 0.0005
             
-            # 2. Shape: Bags are strictly "horizontal/squarish" (0.8 to 2.5). 
-            bad_ar = (aspect_ratio < 0.8) or (aspect_ratio > 3.0)
+            # 2. Shape: Relaxed for angled/stacked bags (0.4 to 4.0) - v9.0
+            bad_ar = (aspect_ratio < 0.4) or (aspect_ratio > 4.0)
             
-            # 3. Position: Top 5% Ceiling rejection
-            is_high = cy < (height * 0.05)
+            # 3. Position: Top 15% Ceiling rejection (prevents boxing the sky/background walls)
+            is_high = cy < (height * 0.15)
             
             # --- v8.1 BALANCED INDUSTRIAL FILTERS ---
             
@@ -231,9 +267,9 @@ class JuteBagTracker:
             # - Static: Relaxed, use generic ground filter if at bottom
             is_ground = (y2 > height * 0.80) if strict else (y2 > height * 0.90 and aspect_ratio > 2.5)
             
-            # 6. MACRO-NOISE REJECTION (v8.4): No sack is > 45% of screen size in Static
-            # Foreground warehouse bags can be massive.
-            size_limit = 0.25 if strict else 0.45
+            # 6. MACRO-NOISE REJECTION: No sack is > massive screen size limit in Static
+            # Foreground warehouse bags can be massive (up to 55%), but not > 90% of screen.
+            size_limit = 0.25 if strict else 0.55
             is_too_big = (w > width * size_limit) or (h > height * size_limit)
             
             # 7. TRUCK WALL / PILLAR (Tall & touching side)
@@ -303,7 +339,6 @@ class JuteBagTracker:
                 if is_in_zone:
                     if track_id not in self.counted_ids:
                         # NEW BAG
-                        self.total_count += 1
                         self.counted_ids.add(track_id)
                         # Visual Feedback
                         cv2.circle(annotated_frame, (int(cx), int(cy)), 10, (0, 255, 0), -1)
@@ -315,7 +350,7 @@ class JuteBagTracker:
                     cv2.circle(annotated_frame, (int(cx), int(cy)), 5, (0, 0, 255), -1)
         
         # Draw Total Count
-        cv2.putText(annotated_frame, f"Live Count: {self.total_count}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(annotated_frame, f"Live Count: {len(self.counted_ids)}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
         return annotated_frame
 
@@ -380,7 +415,7 @@ class JuteBagTracker:
                 if snapshot_count > current_count:
                     current_count = snapshot_count
                     if on_update:
-                         try: on_update({"count": self.total_count + current_count, "frame_idx": frame_idx}) 
+                         try: on_update({"count": current_count, "frame_idx": frame_idx}) 
                          except: pass
 
                 # 3. Optimize Visualization (Static)
@@ -439,7 +474,7 @@ class JuteBagTracker:
                                 cv2.rectangle(annotated_frame, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (0, 255, 0), 2)
                                 if on_update:
                                     try:
-                                        on_update({"count": self.total_count + current_count, "frame_idx": frame_idx})
+                                        on_update({"count": current_count, "frame_idx": frame_idx})
                                     except:
                                         pass
                             else:
@@ -462,7 +497,7 @@ class JuteBagTracker:
                     import base64
                     _, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
                     jpg_as_text = base64.b64encode(buffer).decode('utf-8')
-                    on_update({"type": "frame", "data": jpg_as_text, "count": self.total_count + current_count})
+                    on_update({"type": "frame", "data": jpg_as_text, "count": current_count})
                 except Exception as e:
                     print(f"Frame broadcast failed: {e}")
 
@@ -472,7 +507,7 @@ class JuteBagTracker:
         out.release()
         
         # Update global total
-        self.total_count += current_count 
+        # self.total_count += current_count # v13.5 Disabled for session isolation
         
         print(f"Processed video saved to {output_path} | Final Count: {current_count}")
         return {"count": current_count, "status": "completed"}
@@ -525,12 +560,12 @@ class JuteBagTracker:
                 import base64
                 _, buffer = cv2.imencode('.jpg', annotated_frame)
                 jpg_as_text = base64.b64encode(buffer).decode('utf-8')
-                on_update({"type": "frame", "data": jpg_as_text, "count": self.total_count + count})
+                on_update({"type": "frame", "data": jpg_as_text, "count": count})
             except Exception as e:
                 print(f"Frame broadcast failed: {e}")
 
         # Update Global Count
-        self.total_count += count
+        # self.total_count += count # v13.5 Disabled for session isolation
         
         print(f"Processed image saved to {output_path} | Final Count: {count}")
         return {

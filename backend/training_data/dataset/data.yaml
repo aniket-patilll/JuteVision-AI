@@ -1,0 +1,6 @@
+names:
+- sack
+nc: 1
+path: /Users/psaipratyusha/Desktop/JuteVision_AI/backend/training_data/dataset
+train: train/images
+val: val/images

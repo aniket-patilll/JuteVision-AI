@@ -12,8 +12,8 @@ env/
 
 # Data & Output (Tracked)
 # These folders contain processed results and raw test videos.
-# backend/detections/
-# backend/uploads/
+backend/detections/
+backend/uploads/
 
 # Temporary Data (Ignored)
 backend/temp_uploads/
