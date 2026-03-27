@@ -2,7 +2,10 @@ import cv2
 import torch
 import numpy as np
 import os
-from ultralytics import YOLO
+try:
+    from ultralytics import YOLO
+except ImportError:
+    from ultralytics import YOLO
 
 class VolumeEstimator:
     def __init__(self, model_name="sacks_custom.pt"):
@@ -18,8 +21,9 @@ class VolumeEstimator:
             self.model = None
         else:
             self.model = YOLO(model_path)
-            self.model.to(self.device)
-            print(f"VolumeEstimator loaded model on {self.device}")
+            if self.model is not None:
+                self.model.to(self.device)
+                print(f"VolumeEstimator loaded model on {self.device}")
 
     def _get_device(self):
         if torch.backends.mps.is_available():
@@ -156,7 +160,7 @@ class VolumeEstimator:
             "estimation_mode": True
         }
 
-    def process_video(self, video_path, output_path, on_update=None, depth_override=None):
+    def process_video(self, video_path: str, output_path: str, on_update=None, depth_override=None):
         if self.model is None:
             return {"count": 0, "status": "model_not_loaded"}
 
@@ -179,6 +183,13 @@ class VolumeEstimator:
             if not success:
                 break
                 
+            # Frame skipping for Quantity Count Pro (Volumetric stack is static)
+            if frame_idx % 5 != 0:
+                frame_idx += 1
+                continue
+
+            if self.model is None:
+                break
             results = self.model(frame, conf=0.25, verbose=False)
             annotated_frame = frame.copy()
             boxes_data = []
@@ -202,7 +213,7 @@ class VolumeEstimator:
                 
             # Burn LIVE info into video
             cv2.putText(annotated_frame, f"Visible Sacks Detected: {best_estimation['visible_count']}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(annotated_frame, f"Current Total Prediction: {best_estimation['estimated_total']}", (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+            cv2.putText(annotated_frame, f"Quantity Count Pro Mode Prediction: {best_estimation['estimated_total']}", (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
             out.write(annotated_frame)
             

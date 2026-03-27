@@ -1,0 +1,13 @@
+{
+  "source_directories": [
+    "backend/app"
+  ],
+  "search_path": [
+    "/Users/psaipratyusha/Desktop/JuteVision_AI 3/backend/.venv/lib/python3.14/site-packages",
+    "/Users/psaipratyusha/Desktop/JuteVision_AI 3/backend"
+  ],
+  "exclude": [
+    "**/node_modules/**",
+    "**/.venv/**"
+  ]
+}

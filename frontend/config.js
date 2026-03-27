@@ -38,13 +38,7 @@ export const ENDPOINTS = {
     GODOWN_STREAM: '/godown/stream',
 };
 
-// Supabase Configuration
-export const SUPABASE_CONFIG = {
-    URL: 'https://nrlogpxkdrflsiukhqcb.supabase.co',
-    KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ybG9ncHhrZHJmbHNpdWtocWNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMDk5NTcsImV4cCI6MjA4NDY4NTk1N30.QC6dAmVK6fKainhAs5lltwvDLPJkWg72Wfs4w_nfMRg'
-};
-
-// Construct full URLs
+// Construcut full URLs
 export const getApiUrl = (endpoint) => `${API_BASE_URL}${endpoint}`;
 
 export const getWsUrl = (endpoint) => {

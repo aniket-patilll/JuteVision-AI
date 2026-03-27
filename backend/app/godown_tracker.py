@@ -12,12 +12,39 @@ import numpy as np
 import os
 import json
 import time
-from ultralytics import YOLO
+from typing import Any, Optional, Generator, Union, Dict, List, Tuple, cast
+try:
+    from ultralytics import YOLO
+except ImportError:
+    # Fallback to local import if needed, though ultralytics should be in site-packages
+    from ultralytics import YOLO
 
 
 class GodownTracker:
-    def __init__(self, model_name="sacks_custom.pt"):
-        print("Initializing GodownTracker...")
+    user_id: Optional[str]
+    device: str
+    model: Any
+    person_model: Any
+    data_dir: str
+    inventory_file: str
+    track_positions: dict[int, list[tuple[float, float, int]]]
+    counted_in_ids: set[int]
+    counted_out_ids: set[int]
+    today_in: int
+    today_out: int
+    events: list[dict]
+    display_id_counter: int
+    tid_to_display_id: dict[int, int]
+    person_carry_history: dict
+    max_initial_sacks: int
+    initial_right_tids: dict
+    person_tainted_ids: set[int]
+    inventory: int
+    _live_frame_idx: int
+
+    def __init__(self, model_name="sacks_custom.pt", user_id=None):
+        print(f"Initializing GodownTracker for user: {user_id or 'default'}...")
+        self.user_id = user_id
 
         self.device = self._get_device()
         print(f"Using device: {self.device}")
@@ -43,10 +70,14 @@ class GodownTracker:
             print(f"GodownTracker: Person model not available: {e}")
             self.person_model = None
 
-        # Persistent inventory file
+        # Persistent inventory file - scoped by user_id
         self.data_dir = os.path.join(os.path.dirname(current_dir), "data")
         os.makedirs(self.data_dir, exist_ok=True)
-        self.inventory_file = os.path.join(self.data_dir, "godown_inventory.json")
+        filename = "godown_inventory.json"
+        if self.user_id and self.user_id != "anonymous":
+            filename = f"godown_inventory_{self.user_id}.json"
+        
+        self.inventory_file = os.path.join(self.data_dir, filename)
 
         # State
         self.reset_state()
@@ -73,56 +104,45 @@ class GodownTracker:
         self.max_initial_sacks = 0 # Tracks initial godown inventory max count during scan
         self.initial_right_tids = {} # Tracks how many frames a tid has spent on the right side initially
         self.person_tainted_ids = set()  # Sack track IDs that overlapped with a person (permanently banned)
+        self.inventory = 0
+        self._live_frame_idx = 0
         return {"status": "reset"}
 
-    # --- Persistent Inventory ---
+    # --- Ephemeral Inventory ---
 
     def load_inventory(self):
-        """Load inventory count from persistent JSON file."""
-        try:
-            if os.path.exists(self.inventory_file):
-                with open(self.inventory_file, "r") as f:
-                    data = json.load(f)
-                    return data.get("inventory", 0)
-        except Exception as e:
-            print(f"GodownTracker: Error loading inventory: {e}")
-        return 0
+        """Return the current in-memory inventory."""
+        return self.inventory
 
     def save_inventory(self, inventory):
-        """Save inventory count to persistent JSON file."""
-        try:
-            data = {
-                "inventory": inventory,
-                "last_updated": time.strftime("%Y-%m-%d %H:%M:%S"),
-            }
-            with open(self.inventory_file, "w") as f:
-                json.dump(data, f, indent=2)
-        except Exception as e:
-            print(f"GodownTracker: Error saving inventory: {e}")
+        """Update the in-memory inventory (JSON persistence disabled)."""
+        self.inventory = inventory
 
     def set_baseline(self, count):
-        """Manually set the inventory baseline (e.g., 500 sacks already in godown)."""
-        self.save_inventory(count)
-        return {"status": "baseline_set", "inventory": count}
+        """Manually set the inventory baseline."""
+        self.inventory = count
+        return {"status": "baseline_set", "inventory": self.inventory}
 
     def get_status(self):
         """Returns current godown status."""
-        inventory = self.load_inventory()
+        # Removed self.inventory = self.load_inventory() to prevent 
+        # overwriting the memory state with stale persistent data.
         return {
-            "inventory": inventory,
+            "inventory": self.inventory,
             "today_in": self.today_in,
             "today_out": self.today_out,
             "net_change": self.today_in - self.today_out,
         }
 
     def reset_daily(self):
-        """Reset daily in/out counters (called at start of day or manually)."""
+        """Reset daily in/out counters and base inventory (called manually)."""
+        self.inventory = 0
         self.today_in = 0
         self.today_out = 0
         self.counted_in_ids = set()
         self.counted_out_ids = set()
         self.events = []
-        return {"status": "daily_reset", "inventory": self.load_inventory()}
+        return {"status": "daily_reset", "inventory": self.inventory}
 
     # --- Direction Detection ---
 
@@ -214,20 +234,39 @@ class GodownTracker:
 
         # Reset inventory for this video session (fresh start)
         self.save_inventory(0)
-        inventory = 0
-        frame_idx = 0
+        self.inventory = 0
+        frame_idx: int = 0
+        current_valid_boxes: int = 0
+
+        # v13.8 Early feedback: Trigger reset on frontend immediately
+        if on_update:
+            try:
+                on_update({
+                    "event": "godown_init_reset",
+                    "inventory": 0,
+                    "today_in": 0,
+                    "today_out": 0
+                })
+            except: pass
 
         while True:
+            # v13.7 Performance Fix: Frame Skipping
+            if frame_idx > 60 and frame_idx % 3 != 0: # Skipping every 2nd and 3rd frame after initial scan
+                if 'annotated_frame' in locals():
+                    out.write(annotated_frame)
+                frame_idx += 1
+                continue
+
             success, frame = cap.read()
             if not success:
                 break
 
             annotated_frame = frame.copy()
 
-            # --- PERSON DETECTION FIRST (to filter sack false positives) ---
+            # --- PERSON DETECTION (Optimized: Run only once every 6 frames) ---
             person_boxes_frame = []  # Store person bounding boxes (x1,y1,x2,y2)
             person_centroids_frame = []  # Store person centroids (cx,cy,h) for proximity check
-            if self.person_model is not None:
+            if self.person_model is not None and (frame_idx % 6 == 0): # v13.7 Performance Fix
                 person_results = self.person_model.track(
                     frame,
                     persist=True,
@@ -235,6 +274,7 @@ class GodownTracker:
                     iou=0.5,
                     tracker="bytetrack.yaml",
                     classes=[0],  # Person class (COCO)
+                    augment=False, # v13.7 Performance Fix
                     verbose=False,
                 )
 
@@ -277,14 +317,15 @@ class GodownTracker:
                 iou=0.5,
                 tracker="bytetrack.yaml",
                 classes=[0],  # Sacks only
+                augment=False, # v13.7 Performance Fix
                 verbose=False,
             )
 
             if frame_idx < 60 and results and results[0].boxes.id is not None:
                 boxes_scan = results[0].boxes.xywh.cpu().numpy()
                 ids_scan = results[0].boxes.id.int().cpu().tolist()
-                current_valid_boxes = 0
-                valid_tids_this_frame = []
+                current_valid_boxes: int = 0
+                valid_tids_this_frame: list[int] = []
                 for box_s, tid_s in zip(boxes_scan, ids_scan):
                     scx, scy = float(box_s[0]), float(box_s[1])
                     sw, sh = float(box_s[2]), float(box_s[3])
@@ -317,17 +358,18 @@ class GodownTracker:
                     # Sacks are carried on people's backs, so overlap is guaranteed.
                     # We rely purely on the aspect ratio shape filter (sar < 0.65) above.
                     
-                    current_valid_boxes += 1
+                    from typing import cast
+                    current_valid_boxes = cast(int, current_valid_boxes) + 1
                     valid_tids_this_frame.append(tid_s)
                 
                 # If we see more valid sacks in this frame than before across the WHOLE screen, use it as baseline
-                if current_valid_boxes > self.max_initial_sacks:
-                    diff = current_valid_boxes - self.max_initial_sacks
+                if cast(int, current_valid_boxes) > self.max_initial_sacks:
+                    diff = cast(int, current_valid_boxes) - self.max_initial_sacks
                     self.max_initial_sacks = current_valid_boxes
                     
                     # DO NOT increment self.today_in. Initial baseline is just existing inventory.
-                    inventory += diff
-                    self.save_inventory(inventory)
+                    self.inventory += diff
+                    self.save_inventory(self.inventory)
                     
                     for t in valid_tids_this_frame:
                         self.counted_in_ids.add(t)
@@ -339,7 +381,7 @@ class GodownTracker:
                             # We send an event without triggering godown_in so today_in isn't falsely inflated
                             on_update({
                                 "event": "baseline_update",
-                                "inventory": inventory,
+                                "inventory": self.inventory,
                                 "today_in": self.today_in,
                                 "today_out": self.today_out,
                             })
@@ -418,7 +460,7 @@ class GodownTracker:
 
                     sack_x1, sack_y1 = int(cx - w / 2), int(cy - h / 2)
                     sack_x2, sack_y2 = int(cx + w / 2), int(cy + h / 2)
-                    sack_area = max(1, w * h)
+                    sack_area = max(1, int(w * h))
 
                     # Update trajectory
                     if tid not in self.track_positions:
@@ -433,8 +475,8 @@ class GodownTracker:
 
                     if crossing == "in":
                         self.today_in += 1
-                        inventory += 1
-                        self.save_inventory(inventory)
+                        self.inventory += 1
+                        self.save_inventory(self.inventory)
                         self.events.append(
                             {
                                 "msg": f"Sack {display_id} Entered (+1)",
@@ -454,7 +496,7 @@ class GodownTracker:
                                     {
                                         "event": "godown_in",
                                         "display_id": display_id,
-                                        "inventory": inventory,
+                                        "inventory": self.inventory,
                                         "today_in": self.today_in,
                                         "today_out": self.today_out,
                                     }
@@ -464,8 +506,8 @@ class GodownTracker:
 
                     elif crossing == "out":
                         self.today_out += 1
-                        inventory = max(0, inventory - 1)
-                        self.save_inventory(inventory)
+                        self.inventory = max(0, self.inventory - 1)
+                        self.save_inventory(self.inventory)
                         self.events.append(
                             {
                                 "msg": f"Sack {display_id} Left (-1)",
@@ -485,7 +527,7 @@ class GodownTracker:
                                     {
                                         "event": "godown_out",
                                         "display_id": display_id,
-                                        "inventory": inventory,
+                                        "inventory": self.inventory,
                                         "today_in": self.today_in,
                                         "today_out": self.today_out,
                                     }
@@ -519,12 +561,12 @@ class GodownTracker:
             # --- HUD: Inventory Stats ---
             # Background panel
             overlay = annotated_frame.copy()
-            cv2.rectangle(overlay, (10, 10), (320, 145), (0, 0, 0), -1)
+            cv2.rectangle(overlay, (10, 10), (320, 95), (0, 0, 0), -1)
             cv2.addWeighted(overlay, 0.6, annotated_frame, 0.4, 0, annotated_frame)
 
             cv2.putText(
                 annotated_frame,
-                f"GODOWN INVENTORY: {inventory}",
+                f"GODOWN INVENTORY: {self.inventory}",
                 (20, 45),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.8,
@@ -538,24 +580,6 @@ class GodownTracker:
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
                 (0, 255, 0),
-                2,
-            )
-            cv2.putText(
-                annotated_frame,
-                f"OUT Today: -{self.today_out}",
-                (20, 110),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 100, 255),
-                2,
-            )
-            cv2.putText(
-                annotated_frame,
-                f"Net: {'+' if (self.today_in - self.today_out) >= 0 else ''}{self.today_in - self.today_out}",
-                (20, 140),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 255),
                 2,
             )
 
@@ -589,18 +613,18 @@ class GodownTracker:
 
             out.write(annotated_frame)
 
-            # Broadcast frame
-            if on_update and frame_idx % 2 == 0:
+            # v13.7 Performance Fix: Broadcast frame every 6 frames to save bandwidth
+            if on_update and frame_idx % 6 == 0:
                 try:
                     import base64
 
-                    _, buffer = cv2.imencode(".jpg", annotated_frame)
+                    _, buffer = cv2.imencode(".jpg", annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
                     jpg_as_text = base64.b64encode(buffer).decode("utf-8")
                     on_update(
                         {
                             "type": "frame",
                             "data": jpg_as_text,
-                            "count": inventory,
+                            "count": self.inventory,
                             "today_in": self.today_in,
                             "today_out": self.today_out,
                         }
@@ -614,14 +638,14 @@ class GodownTracker:
         out.release()
 
         # Save final inventory
-        self.save_inventory(inventory)
+        self.save_inventory(self.inventory)
 
         print(
-            f"GodownTracker: Completed. Inventory={inventory}, In={self.today_in}, Out={self.today_out}"
+            f"GodownTracker: Completed. Inventory={self.inventory}, In={self.today_in}, Out={self.today_out}"
         )
 
         return {
-            "count": inventory,
+            "count": self.inventory,
             "today_in": self.today_in,
             "today_out": self.today_out,
             "net_change": self.today_in - self.today_out,
@@ -644,12 +668,10 @@ class GodownTracker:
         annotated_frame = frame.copy()
 
         # Use incremental frame index for live mode
-        if not hasattr(self, '_live_frame_idx'):
-            self._live_frame_idx = 0
         self._live_frame_idx += 1
         frame_idx = self._live_frame_idx
 
-        inventory = self.load_inventory()
+        self.inventory = self.load_inventory()
 
         # --- PERSON DETECTION FIRST ---
         person_boxes_frame = []
@@ -718,7 +740,7 @@ class GodownTracker:
 
                 sack_x1, sack_y1 = int(cx - w / 2), int(cy - h / 2)
                 sack_x2, sack_y2 = int(cx + w / 2), int(cy + h / 2)
-                sack_area = max(1, w * h)
+                sack_area = max(1, int(w * h))
                 is_person = False
                 for (pcx, pcy, ph) in person_centroids_frame:
                     dist = np.sqrt((cx - pcx)**2 + (cy - pcy)**2)
@@ -738,37 +760,38 @@ class GodownTracker:
                     self.person_tainted_ids.add(tid)
                     continue
 
-                if tid not in self.track_positions:
-                    self.track_positions[tid] = []
-                self.track_positions[tid].append((cx, cy, frame_idx))
-                if len(self.track_positions[tid]) > 30:
-                    self.track_positions[tid].pop(0)
+                tid_int = cast(int, tid)
+                if tid_int not in self.track_positions:
+                    self.track_positions[tid_int] = []
+                self.track_positions[tid_int].append((cx, cy, frame_idx))
+                if len(self.track_positions[tid_int]) > 30:
+                    self.track_positions[tid_int].pop(0)
 
-                crossing = self._detect_crossing(tid, line_x, frame_idx)
-                display_id = self._get_display_id(tid)
+                crossing = self._detect_crossing(tid_int, line_x, frame_idx)
+                display_id = self._get_display_id(tid_int)
 
                 if crossing == "in":
                     self.today_in += 1
-                    inventory += 1
-                    self.save_inventory(inventory)
+                    self.inventory += 1
+                    self.save_inventory(self.inventory)
                     self.events.append({"msg": f"Sack {display_id} Entered (+1)", "color": (0, 255, 0), "frame": frame_idx})
                     cv2.circle(annotated_frame, (int(cx), int(cy)), 15, (0, 255, 0), -1)
                     if on_update:
                         try:
                             on_update({"event": "godown_in", "display_id": display_id,
-                                       "inventory": inventory, "today_in": self.today_in, "today_out": self.today_out})
+                                       "inventory": self.inventory, "today_in": self.today_in, "today_out": self.today_out})
                         except: pass
 
                 elif crossing == "out":
                     self.today_out += 1
-                    inventory = max(0, inventory - 1)
-                    self.save_inventory(inventory)
+                    self.inventory = max(0, self.inventory - 1)
+                    self.save_inventory(self.inventory)
                     self.events.append({"msg": f"Sack {display_id} Left (-1)", "color": (0, 0, 255), "frame": frame_idx})
                     cv2.circle(annotated_frame, (int(cx), int(cy)), 15, (0, 0, 255), -1)
                     if on_update:
                         try:
                             on_update({"event": "godown_out", "display_id": display_id,
-                                       "inventory": inventory, "today_in": self.today_in, "today_out": self.today_out})
+                                       "inventory": self.inventory, "today_in": self.today_in, "today_out": self.today_out})
                         except: pass
 
                 is_right = cx > line_x
@@ -782,17 +805,12 @@ class GodownTracker:
 
         # --- HUD ---
         overlay = annotated_frame.copy()
-        cv2.rectangle(overlay, (10, 10), (320, 145), (0, 0, 0), -1)
+        cv2.rectangle(overlay, (10, 10), (320, 95), (0, 0, 0), -1)
         cv2.addWeighted(overlay, 0.6, annotated_frame, 0.4, 0, annotated_frame)
-        cv2.putText(annotated_frame, f"GODOWN INVENTORY: {inventory}", (20, 45),
+        cv2.putText(annotated_frame, f"GODOWN INVENTORY: {self.inventory}", (20, 45),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
         cv2.putText(annotated_frame, f"IN Today: +{self.today_in}", (20, 80),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        cv2.putText(annotated_frame, f"OUT Today: -{self.today_out}", (20, 110),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 100, 255), 2)
-        net = self.today_in - self.today_out
-        cv2.putText(annotated_frame, f"Net: {'+' if net >= 0 else ''}{net}", (20, 140),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
         for i, event in enumerate(reversed(self.events[-5:])):
             age = frame_idx - event["frame"]

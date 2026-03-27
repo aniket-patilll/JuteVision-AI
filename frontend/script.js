@@ -1,18 +1,9 @@
-import { requireAuth, signOut } from './auth.js';
 import { API_BASE_URL, ENDPOINTS, getApiUrl, getWsUrl } from './config.js';
 
-// Protect Route & Get User ID
-let userId = null;
-const initAuth = async () => {
-    const session = await requireAuth();
-    if (session) {
-        userId = session.user.id;
-        connectWebSocket(); // Start user-specific dynamic updates
-        loadRecentUploads();
-        updateGlobalStats();
-    }
-};
-initAuth();
+// User ID (Hardcoded as authentication is disabled)
+let userId = 'admin';
+
+const getCurrentUserId = () => userId || 'anonymous';
 
 const getAnalyticsKey = () => userId ? `analyticsData_${userId}` : 'analyticsData';
 
@@ -23,16 +14,6 @@ const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const uploadList = document.getElementById('upload-list');
 const currentCount = document.getElementById('current-count');
-
-// Logout Logic
-const logoutBtn = document.getElementById('nav-logout');
-if (logoutBtn) {
-    logoutBtn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        await signOut();
-        window.location.href = 'login.html';
-    });
-}
 
 // Modal Logic
 uploadBtn.addEventListener('click', () => {
@@ -143,6 +124,11 @@ async function handleUpload(file) {
     const selectedMode = document.querySelector('input[name="analysis-mode"]:checked').value;
     formData.append('mode', selectedMode);
 
+    // v13.8: Proactively reset Godown UI to avoid "decrease" illusion
+    if (selectedMode === 'godown') {
+        resetGodownStats();
+    }
+
     // Add manual depth override if applicable
     if (selectedMode === 'volume') {
         const depthInput = document.getElementById('manual-depth-input');
@@ -197,7 +183,7 @@ async function pollTaskStatus(taskId, element) {
 
                     if (task.estimation_mode) {
                         const depthLabel = task.depth_override_used ? "Known Depth" : "Est. Depth";
-                        countSpan.innerHTML = `<br><span style="color:#00C853; font-size:0.9rem;">👁️ Visible: ${task.visible_count}</span> | <span style="color:#42A5F5; font-size:0.9rem;">🧊 ${depthLabel}: ${task.depth_layers} Layers</span> <br> <span style="color:var(--accent-gold); font-size:1.1rem; display:inline-block; margin-top:5px;">📦 Total Prediction: ${task.estimated_total} Sacks</span>`;
+                        countSpan.innerHTML = `<br><span style="color:#00C853; font-size:0.9rem;">👁️ Visible: ${task.visible_count}</span> | <span style="color:#42A5F5; font-size:0.9rem;">🧊 ${depthLabel}: ${task.depth_layers} Layers</span> <br> <span style="color:var(--accent-gold); font-size:1.1rem; display:inline-block; margin-top:5px;">📦 Quantity Prediction: ${task.estimated_total} Sacks</span>`;
                         countSpan.style.display = 'block';
                         countSpan.style.marginTop = '5px';
                         countSpan.style.fontWeight = 'bold';
@@ -282,7 +268,8 @@ async function pollTaskStatus(taskId, element) {
                         count: task.count,
                         mediaUrl,
                         isImage: task.is_image,
-                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        date: new Date().toISOString()
                     });
                 } // End of if(!element.querySelector('.result-media-container'))
 
@@ -323,6 +310,7 @@ function addAnalyticsRow(filename, count, status) {
     // Add new entry
     analyticsData.unshift({
         time: timeString,
+        date: now.toISOString(),
         filename: filename,
         count: count,
         status: status,
@@ -356,13 +344,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (cameraToggle.checked) {
                 // Enable Camera - Inform backend first to power up hardware
                 try {
-                    await fetch(getApiUrl(ENDPOINTS.CAMERA_ON), { method: 'POST' });
+                    const formData = new FormData();
+                    formData.append('user_id', getCurrentUserId());
+
+                    await fetch(getApiUrl(ENDPOINTS.CAMERA_ON), { method: 'POST', body: formData });
                 } catch (e) {
                     console.error("Hardware activation signal failed:", e);
                 }
 
                 // Add timestamp to prevent caching issues when re-enabling
-                cameraFeed.src = `${streamUrl}?t=${new Date().getTime()}`;
+                cameraFeed.src = `${streamUrl}/${getCurrentUserId()}?t=${new Date().getTime()}`;
                 cameraFeed.style.display = 'block';
 
                 // Hide placeholder
@@ -370,7 +361,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Disable Camera - Inform backend to kill hardware stream immediately
                 try {
-                    await fetch(getApiUrl(ENDPOINTS.CAMERA_OFF), { method: 'POST' });
+                    const formData = new FormData();
+                    formData.append('user_id', getCurrentUserId());
+
+                    await fetch(getApiUrl(ENDPOINTS.CAMERA_OFF), { method: 'POST', body: formData });
                 } catch (e) {
                     console.error("Hardware deactivation signal failed:", e);
                 }
@@ -476,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const formData = new FormData();
                 formData.append('line_position', linePos);
-                if (userId) formData.append('user_id', userId);
+                formData.append('user_id', getCurrentUserId());
                 await fetch(getApiUrl(ENDPOINTS.GODOWN_START_LIVE), { method: 'POST', body: formData });
             } catch (e) {
                 console.error('Failed to start godown live:', e);
@@ -486,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cameraFeed = document.getElementById('camera-feed');
             const cameraPlaceholder = document.getElementById('camera-placeholder');
             if (cameraFeed) {
-                cameraFeed.src = `${getApiUrl(ENDPOINTS.GODOWN_STREAM)}?t=${new Date().getTime()}`;
+                cameraFeed.src = `${getApiUrl(ENDPOINTS.GODOWN_STREAM)}/${getCurrentUserId()}?t=${new Date().getTime()}`;
                 cameraFeed.style.display = 'block';
             }
             if (cameraPlaceholder) cameraPlaceholder.style.display = 'none';
@@ -543,6 +537,10 @@ const connectWebSocket = () => {
         else if (data.event === "godown_in" || data.event === "godown_out") {
             // Godown real-time event
             updateGodownStats(data);
+        }
+        else if (data.event === "godown_init_reset") {
+            // v13.8: Backend signal to start fresh
+            resetGodownStats();
         }
         else if (data.type === "frame") {
             // LIVE PROCESSING FEEDBACK
@@ -838,39 +836,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sample Data Store
     const sampleData = {
         conveyor: [
-            { name: "Godown Conveyor Belt Sample", type: "video", url: "assets/samples/conveyor_1.mp4", thumb: "assets/samples/conveyor_thumb.jpg" }
+            { name: "Conveyor Mode 01", type: "video", url: "assets/samples/conveyor_mode_01.mp4", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "Conveyor Mode 02", type: "video", url: "assets/samples/conveyor_mode_02.mp4", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "Conveyor Mode 03", type: "video", url: "assets/samples/conveyor_mode_03.mp4", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "Conveyor Mode 04", type: "video", url: "assets/samples/conveyor_mode_04.mp4", thumb: "assets/samples/static_mode_images_01.jpg" }
         ],
         static: [
-            { name: "01_Jute_Stack_Truck", type: "image", url: "assets/samples/static_1.jpg", thumb: "assets/samples/static_1.jpg" },
-            { name: "03_Jute_Warehouse_Grid", type: "image", url: "assets/samples/static_3.jpg", thumb: "assets/samples/static_3.jpg" },
-            { name: "05_Shared_Image", type: "image", url: "assets/samples/static_5.jpg", thumb: "assets/samples/static_5.jpg" },
-            { name: "06_Shared_Image_3", type: "image", url: "assets/samples/static_6.jpg", thumb: "assets/samples/static_6.jpg" }
+            { name: "Static Mode Image 01", type: "image", url: "assets/samples/static_mode_images_01.jpg", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "Static Mode Image 02", type: "image", url: "assets/samples/static_mode_images_02.jpg", thumb: "assets/samples/static_mode_images_02.jpg" },
+            { name: "Static Mode Image 03", type: "image", url: "assets/samples/static_mode_images_03.jpg", thumb: "assets/samples/static_mode_images_03.jpg" },
+            { name: "Static Mode Image 04", type: "image", url: "assets/samples/static_mode_images_04.jpg", thumb: "assets/samples/static_mode_images_04.jpg" }
         ],
         scanning: [
-            { name: "Scanning Mode 01", type: "video", url: "assets/samples/scanning_1.mp4", thumb: "assets/samples/scanning_thumb.jpg" },
-            { name: "Scanning Mode 02", type: "video", url: "assets/samples/scanning_2.mp4", thumb: "assets/samples/scanning_thumb.jpg" },
-            { name: "Scanning Mode 03", type: "video", url: "assets/samples/scanning_3.mp4", thumb: "assets/samples/scanning_thumb.jpg" },
-            { name: "Scanning Mode 04", type: "video", url: "assets/samples/scanning_4.mp4", thumb: "assets/samples/scanning_thumb.jpg" }
+            { name: "Scanning Mode 01", type: "video", url: "assets/samples/scanning_1.mp4", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "Scanning Mode 02", type: "video", url: "assets/samples/scanning_2.mp4", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "Scanning Mode 03", type: "video", url: "assets/samples/scanning_3.mp4", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "Scanning Mode 04", type: "video", url: "assets/samples/scanning_4.mp4", thumb: "assets/samples/static_mode_images_01.jpg" }
         ],
         zone: [
-            { name: "Zone Mode 02", type: "video", url: "assets/samples/zone_2.mp4", thumb: "assets/samples/zone_thumb.jpg" }
+            { name: "Zone Mode 02", type: "video", url: "assets/samples/zone_2.mp4", thumb: "assets/samples/static_mode_images_01.jpg" }
         ],
         volume: [
             { name: "Volume Estimation 01", type: "image", url: "assets/samples/Volume_estimation_01.jpeg", thumb: "assets/samples/static_1.jpg" },
             { name: "Volume Estimation 02", type: "image", url: "assets/samples/Volume_estimation_02.jpeg", thumb: "assets/samples/static_1.jpg" },
-            { name: "Volume Estimation 03", type: "video", url: "assets/samples/Volume_estimation_03.mp4", thumb: "assets/samples/scanning_thumb.jpg" },
             { name: "Volume Estimation 04", type: "image", url: "assets/samples/Volume_estmation_04.jpeg", thumb: "assets/samples/static_1.jpg" },
             { name: "Volume Estimation 05", type: "image", url: "assets/samples/Volume_estimation_05.jpeg", thumb: "assets/samples/static_1.jpg" }
         ],
         multicctv: [
-            { name: "CCTV Angle 1", type: "video", url: "assets/samples/scanning_mode_1.mp4", thumb: "assets/samples/scanning_thumb.jpg" },
-            { name: "CCTV Angle 2", type: "video", url: "assets/samples/scanning_mode_2.mp4", thumb: "assets/samples/scanning_thumb.jpg" },
-            { name: "CCTV Angle 3", type: "video", url: "assets/samples/scanning_mode_3.mp4", thumb: "assets/samples/scanning_thumb.jpg" },
-            { name: "CCTV Angle 4", type: "video", url: "assets/samples/scanning_mode_4.mp4", thumb: "assets/samples/scanning_thumb.jpg" }
+            { name: "CCTV Angle 1", type: "video", url: "assets/samples/scanning_mode_1.mp4", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "CCTV Angle 2", type: "video", url: "assets/samples/scanning_mode_2.mp4", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "CCTV Angle 3", type: "video", url: "assets/samples/scanning_mode_3.mp4", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "CCTV Angle 4", type: "video", url: "assets/samples/scanning_mode_4.mp4", thumb: "assets/samples/static_mode_images_01.jpg" }
         ],
         godown: [
-            { name: "Godown Sample Video", type: "video", url: "assets/samples/godown_sample.mp4", thumb: "assets/samples/conveyor_thumb.jpg" },
-            { name: "Godown Video 02", type: "video", url: "assets/samples/Godown_mode02.mp4", thumb: "assets/samples/conveyor_thumb.jpg" }
+            { name: "Godown Sample Mode 01", type: "video", url: "assets/samples/godown_Sample_mode_01.mp4", thumb: "assets/samples/static_mode_images_01.jpg" },
+            { name: "Godown Sample Mode 02", type: "video", url: "assets/samples/godown_Sample_mode_02.mp4", thumb: "assets/samples/static_mode_images_01.jpg" }
         ]
     };
 
@@ -1243,6 +1243,7 @@ async function handleGridUpload(rows, cols) {
                 const label = `Camera ${multiCctvCameraCounter}`;
                 const addForm = new FormData();
                 addForm.append('label', label);
+                if (userId) addForm.append('user_id', userId);
 
                 const addResp = await fetch(getApiUrl(ENDPOINTS.MULTI_CCTV_ADD), { method: 'POST', body: addForm });
                 const addData = await addResp.json();
@@ -1254,13 +1255,13 @@ async function handleGridUpload(rows, cols) {
                 updateCameraStatus(camId, 'processing', 'Uploading...');
 
                 // Upload video to this camera
-                const uploadForm = new FormData();
-                uploadForm.append('file', file);
-                if (userId) uploadForm.append('user_id', userId);
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('user_id', getCurrentUserId());
 
                 fetch(getApiUrl(`${ENDPOINTS.MULTI_CCTV_UPLOAD}/${camId}`), {
                     method: 'POST',
-                    body: uploadForm
+                    body: formData
                 }).then(resp => resp.json()).then(data => {
                     updateCameraStatus(camId, 'processing', 'Processing...');
                     pollCameraCounts(camId);
@@ -1294,6 +1295,7 @@ async function addCameraCell() {
         const label = `Camera ${multiCctvCameraCounter}`;
         const formData = new FormData();
         formData.append('label', label);
+        formData.append('user_id', getCurrentUserId());
 
         const response = await fetch(getApiUrl(ENDPOINTS.MULTI_CCTV_ADD), {
             method: 'POST',
@@ -1366,7 +1368,7 @@ function uploadToCamera(cameraId) {
 
         const formData = new FormData();
         formData.append('file', file);
-        if (userId) formData.append('user_id', userId);
+        formData.append('user_id', getCurrentUserId());
 
         try {
             const response = await fetch(`${getApiUrl(ENDPOINTS.MULTI_CCTV_UPLOAD)}/${cameraId}`, {
@@ -1396,7 +1398,7 @@ function startLiveCamera(cameraId) {
     const formData = new FormData();
     formData.append('source', source);
 
-    fetch(`${getApiUrl(ENDPOINTS.MULTI_CCTV_LIVE)}/${cameraId}`, {
+    fetch(`${getApiUrl(ENDPOINTS.MULTI_CCTV_LIVE)}/${getCurrentUserId()}/${cameraId}`, {
         method: 'POST',
         body: formData
     }).then(response => response.json()).then(data => {
@@ -1410,7 +1412,7 @@ function startLiveCamera(cameraId) {
                 const waitText = cellBody.querySelector('.cam-waiting-text');
                 if (waitText) waitText.remove();
                 const img = document.createElement('img');
-                img.src = `${getApiUrl(ENDPOINTS.MULTI_CCTV_STREAM)}/${cameraId}?t=${Date.now()}`;
+                img.src = `${getApiUrl(ENDPOINTS.MULTI_CCTV_STREAM)}/${getCurrentUserId()}/${cameraId}?t=${Date.now()}`;
                 img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;';
                 cellBody.insertBefore(img, cellBody.firstChild);
             }
@@ -1431,7 +1433,7 @@ window.removeCameraCell = removeCameraCell;
 
 async function removeCameraCell(cameraId) {
     try {
-        await fetch(`${getApiUrl(ENDPOINTS.MULTI_CCTV_REMOVE)}/${cameraId}`, { method: 'POST' });
+        await fetch(`${getApiUrl(ENDPOINTS.MULTI_CCTV_REMOVE)}/${getCurrentUserId()}/${cameraId}`, { method: 'POST' });
     } catch (e) {
         console.warn('Remove API failed:', e);
     }
@@ -1460,7 +1462,7 @@ function updateCameraStatus(cameraId, statusClass, text) {
 function pollCameraCounts(cameraId) {
     const interval = setInterval(async () => {
         try {
-            const response = await fetch(getApiUrl(ENDPOINTS.MULTI_CCTV_COUNTS));
+            const response = await fetch(getApiUrl(`${ENDPOINTS.MULTI_CCTV_COUNTS}/${getCurrentUserId()}`));
             const data = await response.json();
 
             if (data.cameras && data.cameras[cameraId]) {
@@ -1602,7 +1604,7 @@ function updateMultiCctvCamCount() {
 
 async function loadGodownStatus() {
     try {
-        const response = await fetch(getApiUrl(ENDPOINTS.GODOWN_STATUS));
+        const response = await fetch(getApiUrl(`${ENDPOINTS.GODOWN_STATUS}/${getCurrentUserId()}`));
         const data = await response.json();
         updateGodownStats(data);
     } catch (e) {
@@ -1613,16 +1615,96 @@ async function loadGodownStatus() {
 function updateGodownStats(data) {
     const inv = document.getElementById('godown-inventory');
     const todayIn = document.getElementById('godown-today-in');
-    const todayOut = document.getElementById('godown-today-out');
     const netTrend = document.getElementById('godown-net-trend');
 
     if (inv && data.inventory !== undefined) inv.textContent = data.inventory;
     if (todayIn && data.today_in !== undefined) todayIn.textContent = data.today_in;
-    if (todayOut && data.today_out !== undefined) todayOut.textContent = data.today_out;
 
     if (netTrend) {
-        const net = (data.today_in || 0) - (data.today_out || 0);
-        netTrend.textContent = `Net: ${net >= 0 ? '+' : ''}${net}`;
-        netTrend.style.color = net >= 0 ? '#00C853' : '#FF5252';
+        const net = data.today_in || 0;
+        netTrend.textContent = `Net: +${net}`;
+        netTrend.style.color = '#00C853';
     }
 }
+
+function resetGodownStats() {
+    const inv = document.getElementById('godown-inventory');
+    const todayIn = document.getElementById('godown-today-in');
+    const netTrend = document.getElementById('godown-net-trend');
+
+    if (inv) inv.textContent = '0';
+    if (todayIn) todayIn.textContent = '0';
+    if (netTrend) {
+        netTrend.textContent = 'Net: +0';
+        netTrend.style.color = '#00C853';
+    }
+}
+
+async function setGodownBaseline() {
+    const count = prompt("Enter initial baseline inventory (e.g., 500):", "0");
+    if (count !== null) {
+        try {
+            const formData = new FormData();
+            formData.append('count', count);
+            if (userId) formData.append('user_id', userId);
+            const response = await fetch(getApiUrl(ENDPOINTS.GODOWN_BASELINE), {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            updateGodownStats(data);
+        } catch (e) {
+            console.error('Failed to set godown baseline:', e);
+        }
+    }
+}
+
+async function resetGodownDaily() {
+    if (confirm("Are you sure you want to reset today's In/Out counters? Inventory will remain.")) {
+        try {
+            const formData = new FormData();
+            if (userId) formData.append('user_id', userId);
+            const response = await fetch(getApiUrl(ENDPOINTS.GODOWN_RESET_DAILY), {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            updateGodownStats(data);
+        } catch (e) {
+            console.error('Failed to reset godown daily stats:', e);
+        }
+    }
+}
+
+// Expose to window for inline onclicks in dashboard.html
+window.setGodownBaseline = setGodownBaseline;
+window.resetGodownDaily = resetGodownDaily;
+window.startGodownLive = async () => { /* Logic in event listener line 473 */ };
+
+// Update the event listeners for baseline and reset if they are in HTML
+const godownBaselineBtn = document.getElementById('godown-set-baseline-btn');
+if (godownBaselineBtn) godownBaselineBtn.addEventListener('click', setGodownBaseline);
+const godownResetBtn = document.getElementById('godown-reset-daily-btn');
+if (godownResetBtn) godownResetBtn.addEventListener('click', resetGodownDaily);
+
+// --- Global Initialization ---
+async function initializeApp() {
+    try {
+        const response = await fetch(getApiUrl('/session/id'));
+        if (response.ok) {
+            const data = await response.json();
+            const currentSession = localStorage.getItem('backend_session_id');
+            if (currentSession && currentSession !== data.session_id) {
+                console.log("Backend restarted. Clearing old session data.");
+                localStorage.clear();
+            }
+            localStorage.setItem('backend_session_id', data.session_id);
+        }
+    } catch (e) {
+        console.warn("Could not fetch session ID", e);
+    }
+    connectWebSocket();
+    loadRecentUploads();
+}
+initializeApp();
+updateGlobalStats();

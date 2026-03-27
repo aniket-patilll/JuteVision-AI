@@ -1,11 +1,12 @@
 import cv2
 import torch
+import torchvision
 import numpy as np
 import os
 from ultralytics import YOLO
 try:
-    from backend.app.utils import get_centroid, annotate_frame
-except ImportError:
+    from app.utils import get_centroid, annotate_frame
+except (ImportError, ValueError):
     from .utils import get_centroid, annotate_frame
 
 class JuteBagTracker:
@@ -126,7 +127,9 @@ class JuteBagTracker:
             # Run Inference
             # v13.6 Improved Accuracy: Static Mode (strict=False) raised to 0.35 to prevent overcounting from false positives like text watermarks and background noise.
             conf_val = 0.45 if strict else 0.35
-            results = self.model.predict(tile_img, conf=conf_val, iou=0.60, augment=True, classes=[0], verbose=False)
+            # v13.7 Performance Fix: Disabling 'augment=True' for inference. 
+            # Augmentation is too slow for video/live processing and should only be used for static images if necessary.
+            results = self.model.predict(tile_img, conf=conf_val, iou=0.60, augment=False, classes=[0], verbose=False)
             
             if results and len(results[0].boxes) > 0:
                 boxes = results[0].boxes.xyxy.cpu().numpy() # Use xyxy for easy offsetting
@@ -153,7 +156,7 @@ class JuteBagTracker:
         # strict=True: 0.30 (Aggressive anti-ghosting)
         # strict=False: 0.23 (Middle ground between 0.20 and 0.30 to balance overlapping vs ghosting)
         nms_thresh = 0.30 if strict else 0.23
-        keep_indices = torch.ops.torchvision.nms(all_boxes, all_confs, nms_thresh)
+        keep_indices = torchvision.ops.nms(all_boxes, all_confs, nms_thresh)
         
         final_boxes = all_boxes[keep_indices]
         final_confs = all_confs[keep_indices]
@@ -401,6 +404,24 @@ class JuteBagTracker:
             if not success:
                 break
             
+            # v13.7 Performance Fix: Frame Skipping
+            # Process every 2nd frame for tracking, but every 5th for heavy Tiled Scan
+            skip_tracking = (frame_idx % 2 != 0)
+            skip_tiling = (frame_idx % 5 != 0)
+            
+            if mode == "static" and skip_tiling:
+                # Still show previous frame with previous detections to avoid flickering
+                if 'annotated_frame' in locals():
+                    out.write(annotated_frame)
+                frame_idx += 1
+                continue
+            
+            if mode != "static" and skip_tracking:
+                if 'annotated_frame' in locals():
+                    out.write(annotated_frame)
+                frame_idx += 1
+                continue
+
             annotated_frame = frame.copy()
 
             if mode == "static":
@@ -430,14 +451,13 @@ class JuteBagTracker:
                     cv2.circle(annotated_frame, (cx, cy), 4, (0, 255, 0), -1)
 
             else:
-                # --- SCANNING MODE: Center Zone Tracking ---
                 # Run YOLOv8 tracking with OPTIMIZED parameters
-                # augment=True for offline video processing (Robustness)
+                # v13.7 Performance Fix: Set augment=False for better FPS.
                 results = self.model.track(frame, persist=True, conf=0.15, iou=0.6, 
                                         tracker="bytetrack.yaml", 
                                         agnostic_nms=True,
                                         classes=[0],
-                                        augment=True,
+                                        augment=False,
                                         verbose=False)
                 
                 if results and results[0].boxes is not None and len(results[0].boxes) > 0:
@@ -492,10 +512,11 @@ class JuteBagTracker:
             out.write(annotated_frame)
             
             # Broadcast Frame (Live Feedback)
-            if on_update and frame_idx % 2 == 0: # Skip every other frame to save bandwidth if needed
+            # v13.7 Performance Fix: Skip broadcasting if frame_idx is not a multiple of 3 to save WebSocket/CPU bandwidth
+            if on_update and frame_idx % 3 == 0: 
                 try:
                     import base64
-                    _, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+                    _, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50]) # Quality reduced to 50
                     jpg_as_text = base64.b64encode(buffer).decode('utf-8')
                     on_update({"type": "frame", "data": jpg_as_text, "count": current_count})
                 except Exception as e:

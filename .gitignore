@@ -10,16 +10,18 @@ env/
 .DS_Store
 .git
 
-# Data & Output (Tracked)
-# These folders contain processed results and raw test videos.
-backend/detections/
-backend/uploads/
+# Data & Output (Ignored contents, but track folders via .gitkeep)
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
 
-# Temporary Data (Ignored)
-backend/temp_uploads/
+backend/data/detections/*
+!backend/data/detections/.gitkeep
+
+# State & Logs (Ignored)
+backend/data/*.json
 
 # Shared Media
 *.mp4
 !frontend/assets/samples/*.mp4
 
-# Note: AI Models (.pt), Training Data, and Runs are now tracked.
+# Note: AI Models (.pt), Training Data, and Scripts are tracked.

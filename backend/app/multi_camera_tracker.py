@@ -15,6 +15,11 @@ import time
 import base64
 from ultralytics import YOLO
 
+try:
+    from .camera_manager import CameraManager
+except ImportError:
+    from camera_manager import CameraManager
+
 
 class MultiCameraManager:
     def __init__(self, model_name="sacks_custom.pt"):
@@ -23,6 +28,7 @@ class MultiCameraManager:
         self.model_name = model_name
         self.cameras = {}  # camera_id -> camera_data dict
         self._lock = threading.Lock()
+        self._live_frame_idx = {}  # camera_id -> int
 
         # Model path resolution
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -90,10 +96,11 @@ class MultiCameraManager:
             cam["active"] = False
 
             # Wait for thread to finish
-            if cam["thread"] and cam["thread"].is_alive():
-                cam["thread"].join(timeout=3)
+            thread = cam.get("thread")
+            if thread is not None and hasattr(thread, "is_alive") and thread.is_alive():
+                thread.join(timeout=3)
 
-            del self.cameras[camera_id]
+            self.cameras.pop(camera_id, None)
             print(f"MultiCameraManager: Removed camera '{camera_id}'")
             return {"status": "removed", "camera_id": camera_id}
 
@@ -176,6 +183,13 @@ class MultiCameraManager:
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
 
         while cap.isOpened():
+            # v13.7 Performance Fix: Frame Skipping
+            if frame_idx % 3 != 0:
+                if 'annotated_frame' in locals():
+                    out.write(annotated_frame)
+                frame_idx += 1
+                continue
+
             success, frame = cap.read()
             if not success:
                 break
@@ -190,6 +204,7 @@ class MultiCameraManager:
                 iou=0.5,
                 tracker="bytetrack.yaml",
                 classes=[0],
+                augment=False, # v13.7 Performance Fix
                 verbose=False,
             )
 
@@ -257,7 +272,9 @@ class MultiCameraManager:
             )
 
             # Progress
-            progress = int((frame_idx / total_frames) * 100)
+            progress = 0
+            if total_frames > 0:
+                progress = int((frame_idx / total_frames) * 100)
             cv2.putText(
                 annotated_frame,
                 f"Progress: {progress}%",
@@ -277,9 +294,10 @@ class MultiCameraManager:
                     self.cameras[camera_id]["current_frame"] = annotated_frame.copy()
 
             # Broadcast frame
-            if on_update and frame_idx % 3 == 0:
+            # v13.7 Performance Fix: Broadcast frame every 6 frames to save bandwidth
+            if on_update and frame_idx % 6 == 0:
                 try:
-                    _, buffer = cv2.imencode(".jpg", annotated_frame)
+                    _, buffer = cv2.imencode(".jpg", annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
                     jpg_text = base64.b64encode(buffer).decode("utf-8")
                     on_update(
                         {
@@ -368,8 +386,12 @@ class MultiCameraManager:
         except (ValueError, TypeError):
             src = source
 
-        cap = cv2.VideoCapture(src)
-        if not cap.isOpened():
+        if src == 0:
+            cap = CameraManager.get_cap()
+        else:
+            cap = cv2.VideoCapture(src)
+            
+        if not cap or not cap.isOpened():
             with self._lock:
                 if camera_id in self.cameras:
                     self.cameras[camera_id]["status"] = "error"
@@ -397,16 +419,24 @@ class MultiCameraManager:
             cv2.rectangle(annotated, (zx1, zy1), (zx2, zy2), (255, 255, 0), 2)
 
             # Track
-            results = model.track(
-                frame,
-                persist=True,
-                conf=0.45, # Increased from 0.25 to prevent false positives on generic boxes
-                iou=0.5,
-                tracker="bytetrack.yaml",
-                classes=[0],
-                augment=False,
-                verbose=False,
-            )
+            # v13.7 Performance Fix: Run AI only every 3rd frame in live loop to save CPU
+            if camera_id not in self._live_frame_idx:
+                self._live_frame_idx[camera_id] = 0
+            self._live_frame_idx[camera_id] += 1
+            
+            if self._live_frame_idx[camera_id] % 3 == 0:
+                results = model.track(
+                    frame,
+                    persist=True,
+                    conf=0.45, # Increased from 0.25 to prevent false positives on generic boxes
+                    iou=0.5,
+                    tracker="bytetrack.yaml",
+                    classes=[0],
+                    augment=False,
+                    verbose=False,
+                )
+            else:
+                results = None # Skip AI this frame
 
             if results and results[0].boxes.id is not None:
                 boxes = results[0].boxes.xywh.cpu().numpy()
@@ -483,8 +513,9 @@ class MultiCameraManager:
 
         # Wait for threads
         for cam_id, cam in self.cameras.items():
-            if cam["thread"] and cam["thread"].is_alive():
-                cam["thread"].join(timeout=3)
+            thread = cam.get("thread")
+            if thread is not None and hasattr(thread, "is_alive") and thread.is_alive():
+                thread.join(timeout=3)
 
         print("MultiCameraManager: All cameras stopped.")
         return {"status": "all_stopped"}

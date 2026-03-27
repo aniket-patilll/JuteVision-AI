@@ -115,8 +115,16 @@ class ModularZoneTracker:
             dtype=np.int32
         )
 
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+        # Browser-compatible codec (H.264 / avc1)
+        try:
+            fourcc = cv2.VideoWriter_fourcc(*'avc1')
+            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            if not out.isOpened():
+                raise Exception("avc1 failed")
+        except Exception:
+            print("Warning: H.264 (avc1) codec failed. Falling back to mp4v.")
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
         ids_confirmed_inside = set()
         frame_idx = 0
@@ -125,6 +133,13 @@ class ModularZoneTracker:
             # v8.8 Zero-Latency Visual Counter (Reset every frame)
             current_occupancy = 0
             
+            # v13.7 Performance Fix: Frame Skipping
+            if frame_idx % 3 != 0:
+                if 'annotated_frame' in locals():
+                    out.write(annotated_frame)
+                frame_idx += 1
+                continue
+
             success, frame = cap.read()
             if not success:
                 break
@@ -138,6 +153,7 @@ class ModularZoneTracker:
                 iou=0.45, # v10.3 Overlap Buff
                 tracker="bytetrack.yaml",
                 classes=[0], # Strictly track Sacks only
+                augment=False, # v13.7 Performance Fix
                 verbose=False
             )
 
@@ -480,10 +496,10 @@ class ModularZoneTracker:
 
             out.write(annotated_frame)
 
-            # v8.7 High-Frequency Broadcast (Every 2 frames)
-            if on_update and frame_idx % 2 == 0:
+            # v13.7 High-Frequency Broadcast (Every 4 frames to save bandwidth)
+            if on_update and frame_idx % 4 == 0:
                 import base64
-                _, buffer = cv2.imencode('.jpg', annotated_frame)
+                _, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
                 jpg_as_text = base64.b64encode(buffer).decode('utf-8')
                 on_update({
                     "type": "frame",

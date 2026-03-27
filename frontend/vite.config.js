@@ -9,6 +9,7 @@ export default defineConfig({
             '/stream': BACKEND_URL,
             '/download': BACKEND_URL,
             '/reset': BACKEND_URL,
+            '/session': BACKEND_URL, // Session handshake endpoint
             '/static': BACKEND_URL, // Common path for backend static files
             '/camera': BACKEND_URL, // Proxy camera control endpoints
             '/multi-cctv': BACKEND_URL, // Multi-CCTV mode endpoints

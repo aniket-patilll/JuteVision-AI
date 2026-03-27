@@ -5,8 +5,15 @@ import random
 class MockJuteBagTracker:
     def __init__(self):
         print("Initializing MockJuteBagTracker... (Simulation Mode)")
+        self.total_count: int = 0
+        self.counted_ids = set()
+
+    def reset_state(self):
+        """Resets the mock tracker state."""
+        print("Resetting MockJuteBagTracker state...")
         self.total_count = 0
         self.counted_ids = set()
+        return {"status": "reset", "count": 0}
 
     def process_video(self, video_path, output_path, line_y=500, on_update=None):
         """
@@ -23,8 +30,8 @@ class MockJuteBagTracker:
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
         
-        frame_idx = 0
-        simulated_bags = 0
+        frame_idx: int = 0
+        simulated_bags: int = 0
         
         while cap.isOpened():
             ret, frame = cap.read()
@@ -36,8 +43,8 @@ class MockJuteBagTracker:
             
             # Simulate finding a bag every 30 frames
             if frame_idx % 30 == 0 and frame_idx > 0:
-                simulated_bags += 1
-                self.total_count += 1
+                simulated_bags = int(simulated_bags) + 1
+                self.total_count = int(self.total_count) + 1
                 
                 # Draw a fake bounding box
                 cv2.rectangle(frame, (100, 100), (300, 300), (0, 255, 0), 2)
