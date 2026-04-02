@@ -1,8 +1,8 @@
 // Centralized configuration file for the frontend
 
 // Backend API URL (Source of Truth for Vite Proxy)
-export const BACKEND_URL = 'http://localhost:8000';
-export const BACKEND_WS_URL = 'ws://localhost:8000';
+export const BACKEND_URL = 'http://127.0.0.1:8000';
+export const BACKEND_WS_URL = 'ws://127.0.0.1:8000';
 
 // API Base URL for Frontend (Empty to use relative paths/proxy)
 export const API_BASE_URL = '';

@@ -36,6 +36,8 @@ window.addEventListener('click', (e) => {
     }
 });
 
+
+
 // Drag and Drop
 dropZone.addEventListener('click', () => fileInput.click());
 

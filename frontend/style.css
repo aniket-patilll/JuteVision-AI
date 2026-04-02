@@ -59,17 +59,24 @@ body {
 .app-container {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-    /* Prevent body scroll, container manages it */
+    min-height: 100vh;
+    background-color: #f8fafc;
+}
+
+@media (max-height: 800px) {
+    .app-container {
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+    }
 }
 
 /* Site Header */
 .site-header {
     background-color: var(--bg-card);
     border-bottom: 1px solid var(--border-color);
-    padding: 0 2rem;
-    height: 64px;
+    padding: 0 1rem;
+    height: 32px; /* Ultra-slimmed from 40px */
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -142,20 +149,23 @@ body {
 .btn-download-sample {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background-color: #7fa35f;
-    /* Sage Green from reference image */
-    color: white;
-    padding: 8px 18px;
-    border-radius: 30px;
+    gap: 0.5rem;
+    background-color: rgba(127, 163, 95, 0.05); /* Matching system-status light bg */
+    color: #7fa35f; /* Sage green text */
+    padding: 0.25rem 0.75rem; /* Exactly matching system-status padding */
+    border-radius: 20px;
+    border: 1px solid rgba(127, 163, 95, 0.2);
     text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    border: none;
+    font-size: 0.8rem; /* Matching system-status font */
+    font-weight: 500;
+    transition: all 0.2s ease;
     cursor: pointer;
-    box-shadow: 0 4px 10px rgba(127, 163, 95, 0.2);
-    margin-right: 15px;
+    margin-right: 1rem;
+}
+
+.btn-download-sample svg {
+    width: 14px;
+    height: 14px;
 }
 
 .btn-download-sample:hover {
@@ -346,11 +356,17 @@ body {
 
 /* Main Content */
 .main-content {
-    padding: 2rem;
+    padding: 0.25rem 0.75rem 0.15rem; /* Phase 3: Aggressively slimmed from 0.5rem 1rem 0.25rem */
     max-width: 1400px;
     width: 100%;
     margin: 0 auto;
     flex: 1;
+}
+
+@media (max-width: 1024px) {
+    .main-content {
+        padding: 1rem;
+    }
 }
 
 /* New Unified Scroll Wrapper (v10.0) */
@@ -367,7 +383,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
+    margin-bottom: 0.25rem; /* Phase 3: Aggressively slimmed from 0.5rem */
 }
 
 .page-header h2 {
@@ -513,7 +529,25 @@ body {
     font-size: 4rem;
     font-weight: 700;
     color: var(--accent-gold);
-    margin: 1rem 0;
+    margin: 0.5rem 0;
+}
+
+@media (max-width: 1440px) {
+    .stat-value {
+        font-size: 3rem;
+    }
+    .stat-card {
+        min-height: 160px;
+    }
+}
+
+@media (max-height: 900px) {
+    .stat-value {
+        font-size: 2.5rem;
+    }
+    .stat-card {
+        min-height: 140px;
+    }
 }
 
 .stat-trend {
@@ -541,37 +575,71 @@ body {
     border-radius: 8px;
 }
 
-/* Sample Media Modal (v10.4) */
-.modal {
+/* Unified Modal System (v10.5 - Improved Scrollability) */
+.modal, .modal-backdrop {
     display: none;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(8px);
     z-index: 2000;
     opacity: 0;
     transition: opacity 0.3s ease;
-    align-items: center;
+    
+    /* Enable Scrolling when zoomed */
+    overflow-y: auto;
+    display: flex;
+    align-items: flex-start; /* Start from top to allow scroll */
     justify-content: center;
-    padding: 2rem;
+    padding: 2rem 1rem;
+    pointer-events: none;
 }
 
-.modal.active {
+.modal.active, .modal-backdrop.active {
     display: flex;
     opacity: 1;
+    pointer-events: auto;
 }
 
-.modal .modal-content {
-    background: white;
+.modal-content {
+    background-color: var(--bg-card);
     width: 100%;
-    max-width: 900px;
-    border-radius: 20px;
-    padding: 2.5rem;
+    max-width: 500px;
+    border-radius: 16px;
+    padding: 1.5rem;
     position: relative;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    
+    /* Positioning */
+    margin: auto; /* Centers it if there's space, pins to top if not */
+    
+    /* Internal Flex Layout */
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh; /* Internal scroll for tall screens */
+    overflow: hidden;
+}
+
+/* Custom Scrollbar for Radio Group */
+.radio-group-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+
+.radio-group-wrapper::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.radio-group-wrapper::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.radio-group-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 .modal-header {
@@ -589,42 +657,7 @@ body {
     font-weight: 800;
 }
 
-/* Modal */
-.modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s;
-}
-
-.modal-backdrop.active {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.modal-content {
-    background-color: var(--bg-card);
-    padding: 2rem;
-    border-radius: 12px;
-    width: 500px;
-    border: 1px solid var(--border-color);
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-}
+/* Consolidated Modal Logic — Removed Duplicates */
 
 .close-btn {
     background: none;
@@ -867,14 +900,14 @@ body {
     text-align: left;
     color: var(--text-secondary);
     font-weight: 500;
-    font-size: 0.875rem;
-    padding-bottom: 0.75rem;
+    font-size: 0.85rem;
+    padding-bottom: 0.25rem; /* Ultra-slimmed from 0.4rem */
     border-bottom: 1px solid var(--border-color);
 }
 
 .data-table td {
-    padding: 1rem 0;
-    font-size: 0.875rem;
+    padding: 0.25rem 0; /* Ultra-slimmed from 0.4rem */
+    font-size: 0.8rem;
     border-bottom: 1px solid rgba(45, 55, 72, 0.5);
 }
 
@@ -972,8 +1005,8 @@ input:checked+.slider:before {
 .radio-card {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
     border: 1px solid var(--border-color);
     border-radius: 12px;
     cursor: pointer;
@@ -1067,14 +1100,14 @@ input:checked+.slider:before {
 }
 
 .page-title {
-    font-size: 1.5rem;
+    font-size: 1.25rem; /* Shrinking from 1.5rem */
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.15rem;
 }
 
 .page-subtitle {
-    font-size: 0.9rem;
+    font-size: 0.8rem; /* Shrinking from 0.9rem */
     color: var(--text-secondary);
 }
 
@@ -1083,10 +1116,10 @@ input:checked+.slider:before {
     align-items: center;
     gap: 0.5rem;
     background: white;
-    padding: 0.5rem 1rem;
+    padding: 0.35rem 0.75rem; /* Slimming padding */
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--text-primary);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
@@ -1110,21 +1143,21 @@ input:checked+.slider:before {
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    gap: 0.25rem; /* Phase 3: Reduced from 0.5rem */
+    margin-bottom: 0.25rem; /* Phase 3: Reduced from 0.5rem */
 }
 
 .kpi-card {
-    padding: 1.5rem;
+    padding: 0.25rem 0.5rem; /* Phase 3: Aggressively slimmed padding from 0.5rem 0.75rem */
     display: flex;
-    align-items: flex-start;
-    gap: 1rem;
+    align-items: center; /* Changed from flex-start to center */
+    gap: 0.5rem; /* Phase 3: Reduced from 0.75rem */
 }
 
 .kpi-icon-wrapper {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
+    width: 36px; /* Shrinking from 48px */
+    height: 36px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1165,10 +1198,10 @@ input:checked+.slider:before {
 
 .kpi-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 1.75rem;
+    font-size: 1.05rem; /* Shrinking from 1.15rem */
     font-weight: 700;
     color: var(--text-primary);
-    margin: 0.25rem 0;
+    margin: 0;
 }
 
 .kpi-trend {
@@ -1211,8 +1244,8 @@ input:checked+.slider:before {
 /* Charts Grid Layouts */
 .charts-grid {
     display: grid;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    gap: 0.35rem; /* Phase 3: Reduced from 0.5rem */
+    margin-bottom: 0.15rem; /* Phase 3: Reduced from 0.25rem */
 }
 
 .upper-grid {
@@ -1238,7 +1271,7 @@ input:checked+.slider:before {
 }
 
 .chart-card {
-    padding: 1.5rem;
+    padding: 0.25rem 0.5rem; /* Phase 3: Aggressively slimmed from 0.5rem 0.75rem */
     display: flex;
     flex-direction: column;
 }
@@ -1246,13 +1279,13 @@ input:checked+.slider:before {
 .chart-container-large {
     flex: 1;
     position: relative;
-    min-height: 300px;
+    min-height: 110px; /* Phase 3: Ultra-slimmed from 120px */
 }
 
 .chart-container-circle {
     flex: 1;
     position: relative;
-    min-height: 250px;
+    min-height: 110px; /* Phase 3: Ultra-slimmed from 120px */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1260,7 +1293,7 @@ input:checked+.slider:before {
 
 .chart-container {
     position: relative;
-    height: 250px;
+    height: 110px; /* Phase 3: Ultra-slimmed from 120px */
     width: 100%;
 }
 
@@ -1508,7 +1541,7 @@ input:checked+.slider:before {
 .site-footer {
     background-color: var(--footer-bg);
     color: white;
-    padding: 3rem 2rem 2rem;
+    padding: 1.25rem 2rem; /* Slimmed from 3rem */
     margin-top: auto;
     width: 100%;
 }
@@ -1519,9 +1552,9 @@ input:checked+.slider:before {
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center; /* Changed from flex-start to center */
     flex-wrap: wrap;
-    gap: 3rem;
+    gap: 1.5rem; /* Reduced from 3rem */
 }
 
 .footer-left {
@@ -1539,14 +1572,14 @@ input:checked+.slider:before {
 }
 
 .footer-logo {
-    height: 60px;
+    height: 36px; /* Slimmed from 60px */
     width: auto;
     filter: brightness(0) invert(1);
     /* Pure White */
 }
 
 .footer-brand h3 {
-    font-size: 2.2rem;
+    font-size: 1.4rem; /* Slimmed from 2.2rem */
     font-weight: 500;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -1563,7 +1596,7 @@ input:checked+.slider:before {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 2rem;
+    gap: 0.75rem; /* Slimmed from 2rem */
     flex: 1;
     min-width: 300px;
 }
@@ -1574,8 +1607,8 @@ input:checked+.slider:before {
 }
 
 .social-icon {
-    width: 42px;
-    height: 42px;
+    width: 32px; /* Slimmed from 42px */
+    height: 32px;
     background-color: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
@@ -1589,8 +1622,8 @@ input:checked+.slider:before {
 }
 
 .social-icon svg {
-    width: 20px;
-    height: 20px;
+    width: 16px; /* Slimmed from 20px */
+    height: 16px;
     fill: currentColor;
     display: block;
 }
@@ -1641,59 +1674,65 @@ input:checked+.slider:before {
     }
 }
 
-/* Dashboard Usage Guide (v9.9) */
+/* Dashboard Usage Guide (v10.0 - Horizon Slim) */
 .usage-guide {
-    margin-top: 3rem;
-    padding: 3rem;
-    background: #f0f7f0;
-    /* Light sage green background */
-    border-radius: 20px;
+    padding: 0.75rem 1.25rem; /* Ultra-thin padding */
+    background-color: #f0f7f0;
+    border-radius: 12px;
     border: 1px solid #d1e2d1;
-    margin-bottom: 3rem;
+    margin-bottom: 1rem;
     font-family: 'Inter', sans-serif;
 }
 
+#usage-grid-container {
+    opacity: 1;
+}
+
 .usage-guide-header {
-    margin-bottom: 2.5rem;
-    border-bottom: 2px solid #3d6b3d;
-    padding-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #d1e2d1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .usage-guide-header h3 {
-    font-size: 1.75rem;
+    font-size: 1.1rem; /* Reduced from 1.35rem */
     color: #064e3b;
-    /* Dark emerald green */
-    margin-bottom: 0.5rem;
     font-weight: 800;
-    letter-spacing: -0.02em;
 }
 
 .usage-guide-header p {
     color: #4b5563;
-    font-size: 1.1rem;
+    font-size: 0.85rem;
     font-weight: 500;
 }
 
+#usage-subtitle {
+    font-size: 0.85rem; /* Reduced font size */
+    color: #374151; /* Gray-700 */
+    max-width: 100%;
+}
+
 .usage-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
+    display: flex; /* Flex row for a thin ribbon */
+    flex-wrap: wrap;
+    gap: 0.75rem;
 }
 
 .usage-card {
+    flex: 1;
+    min-width: 200px;
     background: white;
-    padding: 2rem;
-    border-radius: 16px;
+    padding: 0.5rem 0.75rem; /* Reduced from 1rem */
+    border-radius: 10px;
     border: 1px solid #e5e7eb;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    /* Centered as per photo */
-    text-align: center;
-    /* Centered as per photo */
-    gap: 1.5rem;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    gap: 0.5rem;
+    transition: transform 0.2s;
 }
 
 .usage-card:hover {
@@ -1702,31 +1741,40 @@ input:checked+.slider:before {
 }
 
 .step-number {
-    width: 44px;
-    height: 44px;
-    background: #5d824a;
-    /* Matches the sage circle green */
+    width: 24px; /* Reduced from 32px */
+    height: 24px;
+    background-color: #497a21;
     color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 1.25rem;
-    box-shadow: 0 4px 8px rgba(93, 130, 74, 0.3);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.usage-card-text {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .usage-card h4 {
-    font-size: 1.25rem;
-    font-weight: 700;
+    font-size: 0.85rem;
     color: #111827;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0;
+    font-weight: 700;
+    line-height: 1.1;
 }
 
 .usage-card p {
-    font-size: 0.95rem;
+    display: block;
+    font-size: 0.65rem;
     color: #6b7280;
-    line-height: 1.6;
+    line-height: 1.1; /* Tighter line height for multi-line */
+    margin-top: 1px;
 }
 
 @media (max-width: 1200px) {

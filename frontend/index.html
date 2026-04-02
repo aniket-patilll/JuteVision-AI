@@ -119,46 +119,47 @@
                 <section class="usage-guide">
                     <div class="usage-guide-header">
                         <h3>How to Use This Tool</h3>
-                        <p>Simple 4-step process for accurate object detection and industrial tracking.</p>
                     </div>
+                    <div id="usage-grid-container">
                     <div class="usage-grid">
                         <div class="usage-card">
                             <div class="step-number">1</div>
                             <div class="usage-card-text">
-                                <h4>Define Analysis Mode</h4>
-                                <p>Choose from <strong>8 powerful AI tracking modes</strong> tailored for your
-                                    environment, including: Conveyor, Static, Scanning, Live CCTV, Zone, Quantity Count
-                                    Pro,
-                                    Multi-CCTV, and Godown.</p>
+                                <h4>Define Mode</h4>
+                                <p>Select your tracking environment.</p>
+                                <p>Choose from 8 specialized AI modes.</p>
+                                <p>Tailor tracking for any scenario.</p>
                             </div>
                         </div>
                         <div class="usage-card">
                             <div class="step-number">2</div>
                             <div class="usage-card-text">
-                                <h4>Upload & Connect</h4>
-                                <p>Click the <strong>Uploads</strong> button to drop your files or connect to your
-                                    <strong>CCTV Live</strong> feed for real-time monitoring.
-                                </p>
+                                <h4>Upload Media</h4>
+                                <p>Drop files or connect CCTV feed.</p>
+                                <p>Supports video, images, or live RTSP.</p>
+                                <p>One-click connection to cameras.</p>
                             </div>
                         </div>
                         <div class="usage-card">
                             <div class="step-number">3</div>
                             <div class="usage-card-text">
-                                <h4>Real-Time Processing</h4>
-                                <p>Our AI will process your feed instantly to detect, track, and count objects with
-                                    industrial-grade accuracy.</p>
+                                <h4>AI Processing</h4>
+                                <p>Detect and track objects in real-time.</p>
+                                <p>Industry-leading accuracy and speed.</p>
+                                <p>Highly optimized deep-learning.</p>
                             </div>
                         </div>
                         <div class="usage-card">
                             <div class="step-number">4</div>
                             <div class="usage-card-text">
-                                <h4>Analytics & Reports</h4>
-                                <p>Head to the <strong>Analytics</strong> tab to review historical trends, peak hour
-                                    stats,
-                                    and detailed efficiency reports.</p>
+                                <h4>Analytics</h4>
+                                <p>Review historical trends and reports.</p>
+                                <p>Export CSV data for offline analysis.</p>
+                                <p>Gain actionable business insights.</p>
                             </div>
                         </div>
                     </div>
+                </div>
                 </section>
                 <header class="page-header">
                     <h2 style="color:#497A21">Real-Time Monitoring</h2>
@@ -172,7 +173,6 @@
                             </svg>
                             Reset
                         </button>
-                        <button class="btn-secondary" id="export-btn">Export Data</button>
                         <button class="btn-primary" id="upload-btn">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                                 xmlns="http://www.w3.org/2000/svg">
@@ -362,171 +362,171 @@
                         </div>
 
                         <!-- Mode Selection -->
-                        <div class="mode-selection" style="margin-bottom: 2rem;">
+                        <div class="mode-selection" style="margin-bottom: 1.5rem; flex: 1; display: flex; flex-direction: column; min-height: 0;">
                             <label
-                                style="display: block; margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;">Select
+                                style="display: block; margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;">Select
                                 Analysis Mode:</label>
-                            <div class="radio-group" style="display: flex; flex-direction: column; gap: 1rem;">
-                                <!-- Multi-CCTV Mode -->
-                                <label class="radio-card">
-                                    <input type="radio" name="analysis-mode" value="multi-cctv">
-                                    <div class="card-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <rect x="2" y="3" width="9" height="8" rx="1"></rect>
-                                            <rect x="13" y="3" width="9" height="8" rx="1"></rect>
-                                            <rect x="2" y="13" width="9" height="8" rx="1"></rect>
-                                            <rect x="13" y="13" width="9" height="8" rx="1"></rect>
-                                        </svg>
-                                    </div>
-                                    <div class="card-text">
-                                        <strong>Multi-CCTV Mode</strong>
-                                        <span>Multiple Cameras Surveillance</span>
-                                    </div>
-                                </label>
-
-                                <!-- Godown Mode -->
-                                <label class="radio-card">
-                                    <input type="radio" name="analysis-mode" value="godown">
-                                    <div class="card-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                                        </svg>
-                                    </div>
-                                    <div class="card-text">
-                                        <strong>Godown Mode</strong>
-                                        <span>Warehouse Entry/Exit Counting</span>
-                                    </div>
-                                </label>
-
-                                <!-- Godown Sub-Options (shown when Godown is selected) -->
-                                <div id="godown-sub-options"
-                                    style="display:none; padding:8px 0 0 36px; gap:10px; flex-wrap:wrap;">
-                                    <label
-                                        style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:8px 16px; border:2px solid #497A21; border-radius:8px; font-size:0.9rem; font-weight:600; color:#497A21; background:#f0f9e8; transition:all 0.2s;">
-                                        <input type="radio" name="godown-sub" value="upload" checked
-                                            style="accent-color:#497A21;">
-                                        📤 Upload Video
+                            <div class="radio-group-wrapper" style="overflow-y: auto; padding-right: 5px; margin-bottom: 1rem;">
+                                <div class="radio-group" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                    <!-- Multi-CCTV Mode -->
+                                    <label class="radio-card">
+                                        <input type="radio" name="analysis-mode" value="multi-cctv">
+                                        <div class="card-icon">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <rect x="2" y="3" width="9" height="8" rx="1"></rect>
+                                                <rect x="13" y="3" width="9" height="8" rx="1"></rect>
+                                                <rect x="2" y="13" width="9" height="8" rx="1"></rect>
+                                                <rect x="13" y="13" width="9" height="8" rx="1"></rect>
+                                            </svg>
+                                        </div>
+                                        <div class="card-text">
+                                            <strong>Multi-CCTV Mode</strong>
+                                            <span>Multiple Cameras Surveillance</span>
+                                        </div>
                                     </label>
-                                    <label
-                                        style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:8px 16px; border:2px solid #497A21; border-radius:8px; font-size:0.9rem; font-weight:600; color:#497A21; background:#f0f9e8; transition:all 0.2s; margin-left:8px;">
-                                        <input type="radio" name="godown-sub" value="cctv"
-                                            style="accent-color:#497A21;">
-                                        📹 CCTV Live
+
+                                    <!-- Godown Mode -->
+                                    <label class="radio-card">
+                                        <input type="radio" name="analysis-mode" value="godown">
+                                        <div class="card-icon">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="card-text">
+                                            <strong>Godown Mode</strong>
+                                            <span>Warehouse Entry/Exit Counting</span>
+                                        </div>
+                                    </label>
+
+                                    <!-- Godown Sub-Options (shown when Godown is selected) -->
+                                    <div id="godown-sub-options"
+                                        style="display:none; padding:8px 0 0 36px; gap:10px; flex-wrap:wrap;">
+                                        <label
+                                            style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:8px 16px; border:2px solid #497A21; border-radius:8px; font-size:0.9rem; font-weight:600; color:#497A21; background:#f0f9e8; transition:all 0.2s;">
+                                            <input type="radio" name="godown-sub" value="upload" checked
+                                                style="accent-color:#497A21;">
+                                            📤 Upload Video
+                                        </label>
+                                        <label
+                                            style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:8px 16px; border:2px solid #497A21; border-radius:8px; font-size:0.9rem; font-weight:600; color:#497A21; background:#f0f9e8; transition:all 0.2s; margin-left:8px;">
+                                            <input type="radio" name="godown-sub" value="cctv"
+                                                style="accent-color:#497A21;">
+                                            📹 CCTV Live
+                                        </label>
+                                    </div>
+
+                                    <!-- Volume Estimation Mode -->
+                                    <label class="radio-card">
+                                        <input type="radio" name="analysis-mode" value="volume">
+                                        <div class="card-icon">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <path
+                                                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                                                </path>
+                                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                            </svg>
+                                        </div>
+                                        <div class="card-text">
+                                            <strong>Quantity Count Pro Mode</strong>
+                                            <span>Predict Hidden Sacks in Stacks</span>
+                                        </div>
+                                    </label>
+                                    <!-- Optional Depth Input (shown via JS when Volume is selected) -->
+                                    <div id="volume-depth-container"
+                                        style="display: none; padding-left: 45px; margin-top: -10px; margin-bottom: 10px;">
+                                        <label
+                                            style="font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 5px;">Known
+                                            Depth (Layers)</label>
+                                        <input type="number" id="manual-depth-input" min="1" max="50"
+                                            placeholder="Auto-calculated if blank"
+                                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.9rem;">
+                                    </div>
+
+                                    <!-- Live Camera -->
+                                    <label class="radio-card">
+                                        <input type="radio" name="analysis-mode" value="live">
+                                        <div class="card-icon">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <path d="M23 7l-7 5 7 5V7z"></path>
+                                                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                                            </svg>
+                                        </div>
+                                        <div class="card-text">
+                                            <strong>CCTV Live</strong>
+                                            <span>Real-time CCTV Feed</span>
+                                        </div>
+                                    </label>
+
+                                    <!-- Static Mode -->
+                                    <label class="radio-card">
+                                        <input type="radio" name="analysis-mode" value="static">
+                                        <div class="card-icon">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="card-text">
+                                            <strong>Static Mode</strong>
+                                            <span>For Piles & Warehouses (Images)</span>
+                                        </div>
+                                    </label>
+
+                                    <!-- Conveyor Mode -->
+                                    <label class="radio-card">
+                                        <input type="radio" name="analysis-mode" value="conveyor" checked>
+                                        <div class="card-icon">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                                <path d="M12 11v11"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="card-text">
+                                            <strong>Conveyor Mode</strong>
+                                            <span>For Standard Conveyor Systems</span>
+                                        </div>
+                                    </label>
+
+                                    <!-- Scanning Mode -->
+                                    <label class="radio-card">
+                                        <input type="radio" name="analysis-mode" value="scanning">
+                                        <div class="card-icon">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="card-text">
+                                            <strong>Scanning Mode</strong>
+                                            <span>For Dynamic Videos</span>
+                                        </div>
+                                    </label>
+
+                                    <!-- Zone Counting Mode -->
+                                    <label class="radio-card">
+                                        <input type="radio" name="analysis-mode" value="zone">
+                                        <div class="card-icon">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <path d="M21 12H3M12 3v18M5 5l14 14M19 5L5 19" />
+                                            </svg>
+                                        </div>
+                                        <div class="card-text">
+                                            <strong>Zone Counting Mode</strong>
+                                            <span>For Custom ROI Areas</span>
+                                        </div>
                                     </label>
                                 </div>
-
-                                <!-- Volume Estimation Mode -->
-                                <label class="radio-card">
-                                    <input type="radio" name="analysis-mode" value="volume">
-                                    <div class="card-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path
-                                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
-                                            </path>
-                                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                                        </svg>
-                                    </div>
-                                    <div class="card-text">
-                                        <strong>Quantity Count Pro Mode</strong>
-                                        <span>Predict Hidden Sacks in Stacks</span>
-                                    </div>
-                                </label>
-                                <!-- Optional Depth Input (shown via JS when Volume is selected) -->
-                                <div id="volume-depth-container"
-                                    style="display: none; padding-left: 45px; margin-top: -10px; margin-bottom: 10px;">
-                                    <label
-                                        style="font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 5px;">Known
-                                        Depth (Layers)</label>
-                                    <input type="number" id="manual-depth-input" min="1" max="50"
-                                        placeholder="Auto-calculated if blank"
-                                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.9rem;">
-                                </div>
-
-                                <!-- Live Camera -->
-                                <label class="radio-card">
-                                    <input type="radio" name="analysis-mode" value="live">
-                                    <div class="card-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path d="M23 7l-7 5 7 5V7z"></path>
-                                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                                        </svg>
-                                    </div>
-                                    <div class="card-text">
-                                        <strong>CCTV Live</strong>
-                                        <span>Real-time CCTV Feed</span>
-                                    </div>
-                                </label>
-
-                                <!-- Static Mode -->
-                                <label class="radio-card">
-                                    <input type="radio" name="analysis-mode" value="static">
-                                    <div class="card-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="card-text">
-                                        <strong>Static Mode</strong>
-                                        <span>For Piles & Warehouses (Images)</span>
-                                    </div>
-                                </label>
-
-                                <!-- Conveyor Mode -->
-                                <label class="radio-card">
-                                    <input type="radio" name="analysis-mode" value="conveyor" checked>
-                                    <div class="card-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                            <path d="M12 11v11"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="card-text">
-                                        <strong>Conveyor Mode</strong>
-                                        <span>For Standard Conveyor Systems</span>
-                                    </div>
-                                </label>
-
-                                <!-- Scanning Mode -->
-                                <label class="radio-card">
-                                    <input type="radio" name="analysis-mode" value="scanning">
-                                    <div class="card-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                                            <line x1="8" y1="21" x2="16" y2="21"></line>
-                                            <line x1="12" y1="17" x2="12" y2="21"></line>
-                                        </svg>
-                                    </div>
-                                    <div class="card-text">
-                                        <strong>Scanning Mode</strong>
-                                        <span>For Dynamic Videos</span>
-                                    </div>
-                                </label>
-
-                                <label class="radio-card">
-                                    <input type="radio" name="analysis-mode" value="zone">
-                                    <div class="card-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                            <path d="M3 9h18M9 21V9"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="card-text">
-                                        <strong>Zone Counting Mode</strong>
-                                        <span>For Custom ROI Areas</span>
-                                    </div>
-                                </label>
-
                             </div>
                         </div>
 
