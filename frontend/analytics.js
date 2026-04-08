@@ -406,7 +406,10 @@ let statusChartInstance = null;
 let socket = null;
 const connectWebSocket = () => {
     if (!userId) return;
-    const wsUrl = `ws://${window.location.hostname}:8000/ws/${userId}`;
+    // const wsUrl = `ws://${window.location.hostname}:8000/ws/${userId}`;
+    // socket = new WebSocket(wsUrl);
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/${userId}`;
     socket = new WebSocket(wsUrl);
 
     socket.onmessage = (event) => {
