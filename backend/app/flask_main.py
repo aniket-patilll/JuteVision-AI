@@ -48,10 +48,6 @@ def ensure_tracker(user_id, key):
             elif key == "multi_cam": session["multi_cam"] = MultiCameraManager()
         except Exception as e:
             print(f"Failed to load {key}: {e}")
-            try:
-                from .mock_tracker import MockJuteBagTracker
-            except ImportError:
-                from mock_tracker import MockJuteBagTracker
             mock = MockJuteBagTracker()
             session[key] = mock
     return session[key]
@@ -105,8 +101,7 @@ os.makedirs(DETECTION_DIR, exist_ok=True)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 TASK_FILE = os.path.join(DATA_DIR, "tasks.json")
-import uuid
-SESSION_ID = str(uuid.uuid4())
+# Removed global SESSION_ID to support unique client sessions
 
 def load_tasks():
     global tasks
@@ -119,7 +114,7 @@ load_tasks()
 
 @app.route('/session/id')
 def session_id():
-    return jsonify({"session_id": SESSION_ID})
+    return jsonify({"session_id": str(uuid.uuid4())})
 
 
 

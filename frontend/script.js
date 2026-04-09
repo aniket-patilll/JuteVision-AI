@@ -1,7 +1,7 @@
 import { API_BASE_URL, ENDPOINTS, getApiUrl, getWsUrl } from './config.js';
 
-// User ID (Hardcoded as authentication is disabled)
-let userId = 'admin';
+// User ID (Scoped to browser instance for isolation)
+let userId = localStorage.getItem('visioncount_userid');
 
 const getCurrentUserId = () => userId || 'anonymous';
 
@@ -1692,19 +1692,32 @@ if (godownResetBtn) godownResetBtn.addEventListener('click', resetGodownDaily);
 // --- Global Initialization ---
 async function initializeApp() {
     try {
-        const response = await fetch(getApiUrl('/session/id'));
+        const response = await fetch(getApiUrl(ENDPOINTS.SESSION_ID));
         if (response.ok) {
             const data = await response.json();
-            const currentSession = localStorage.getItem('backend_session_id');
-            if (currentSession && currentSession !== data.session_id) {
-                console.log("Backend restarted. Clearing old session data.");
-                localStorage.clear();
+            
+            // If no userId exists yet, use the unique server-generated ID
+            if (!userId) {
+                userId = data.session_id;
+                localStorage.setItem('visioncount_userid', userId);
+                console.log("New session assigned:", userId);
             }
-            localStorage.setItem('backend_session_id', data.session_id);
+
+            // Logic to detect backend restarts
+            const lastServerBoot = localStorage.getItem('backend_boot_id');
+            if (lastServerBoot && lastServerBoot !== data.session_id) {
+                console.log("Backend service was restarted.");
+            }
+            localStorage.setItem('backend_boot_id', data.session_id);
         }
     } catch (e) {
-        console.warn("Could not fetch session ID", e);
+        console.warn("Could not fetch unique session ID from backend", e);
+        if (!userId) {
+            userId = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('visioncount_userid', userId);
+        }
     }
+    
     connectWebSocket();
     loadRecentUploads();
 }

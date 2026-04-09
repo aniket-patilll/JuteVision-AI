@@ -9,12 +9,11 @@ An AI-powered system for automated counting of jute bags using YOLOv8 object det
 - **Dynamic Analysis Modes** - Specialized logic for **Conveyor**, **Static**, **Scanning**, **Zone**, **Quantity Count Pro Mode**, **Multi-CCTV**, and **Godown** processing
 - **Download Sample Feature** - Instant ZIP download of high-quality sample videos and images for each analysis mode
 - **High-Density Flow Optimization** - Enhanced deduplication and ID jump protection for rapid product streams
-- **Session-Based Isolation** - Full data and state isolation for multiple concurrent users and guest sessions
+- **Session-Based Isolation** - Full data and state isolation for multiple concurrent users and guest sessions using unique UUIDs
 - **Live CCTV Integration** - Real-time MJPEG camera feed with live ROI occupancy metrics
-- **Interactive Analytics Dashboard** - Premium glassmorphism UI with real-time charts (ApexCharts), activity logs, and CSV export
+- **Interactive Analytics Dashboard** - Premium glassmorphism UI with real-time charts (Chart.js), activity logs, and CSV export
 - **WebSocket Infrastructure** - Low-latency, bi-directional communication for instant dashboard updates
 - **Internal Tools** - Built-in scripts for automated testing (`test_dummy.jpg`) and AI model training (`train_sacks_model.py`)
-- **Session Isolation** - Full data and state isolation for multiple users and guest sessions
 
 ## 🏗️ Technology Stack
 
@@ -157,7 +156,7 @@ The system uses a hybrid storage approach to ensure performance and reliability:
     - `analyticsData`: **The main database for the Analytics Tab**. Stores up to 50 processed task logs (Time, Filename, Count, Status).
     - `currentTotalBags`: Tracks the cumulative session count across page reloads.
     - `recentUploads`: Manages the history list shown in the dashboard sidebar.
-    - `jutevision_guest_id`: Stable unique ID for anonymous users to ensure session isolation.
+    - `visioncount_userid`: Stable unique ID for anonymous users to ensure session isolation.
 
 ## 🔄 Real-Time Dashboard Updates
 
@@ -169,6 +168,7 @@ The dashboard maintains high interactivity through three primary mechanisms:
 
 ## 📊 API Endpoints
 
+- `GET /session/id` - Generate a new unique session UUID
 - `POST /upload` - Upload video/image for processing
 - `GET /tasks/{task_id}` - Get processing status
 - `GET /stream/{user_id}` - MJPEG live camera stream

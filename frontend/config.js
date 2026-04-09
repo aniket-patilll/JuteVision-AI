@@ -36,6 +36,7 @@ export const ENDPOINTS = {
     GODOWN_START_LIVE: '/godown/start-live',
     GODOWN_UPDATE_LINE: '/godown/update-line',
     GODOWN_STREAM: '/godown/stream',
+    SESSION_ID: '/session/id',
 };
 
 // Construcut full URLs
